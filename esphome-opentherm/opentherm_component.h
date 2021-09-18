@@ -28,6 +28,7 @@ class OpenthermComponent: public PollingComponent {
 private:
   const char *TAG = "opentherm_component";
   OpenthermFloatOutput *pid_output_; 
+  unsigned long last_response;
 public:
   Switch *thermostatSwitch = new OpenthermSwitch();
   Sensor *external_temperature_sensor = new Sensor();
@@ -64,6 +65,7 @@ public:
         } else if (sOT.getDataID(request) == OpenThermMessageID::TdhwSetUBTdhwSetLB) {
           ESP_LOGI("opentherm_component", "request to change TdhwSetUBTdhwSetLB");
         }
+        sOT.sendResponse(this->last_response);
 
         // TODO: save PID set-point temperature internally
         // TODO: set and handle "override"
@@ -128,6 +130,8 @@ public:
     
     // Get Boiler status
     auto response = mOT.setBoilerStatus(enableCentralHeating, enableHotWater, enableCooling);
+    this->last_response = response;
+
     bool isFlameOn = mOT.isFlameOn(response);
     bool isCentralHeatingActive = mOT.isCentralHeatingActive(response);
     bool isHotWaterActive = mOT.isHotWaterActive(response);
@@ -186,9 +190,6 @@ public:
     heatingWaterClimate->current_temperature = boilerTemperature;
     heatingWaterClimate->action = isCentralHeatingActive && isFlameOn ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_OFF;
     heatingWaterClimate->publish_state();
-
-    // Forward Boiler status to thermostat
-    // sOT.sendResponse(response);
   }
 
 };
