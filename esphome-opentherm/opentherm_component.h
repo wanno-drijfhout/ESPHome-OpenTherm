@@ -57,7 +57,7 @@ public:
       sOT.begin(sHandleInterrupt, [=](unsigned long request, OpenThermResponseStatus status) -> void {
         ESP_LOGD("opentherm_component", "forwarding request from thermostat to boiler: %#010x", request);
         unsigned long response = mOT.sendRequest(request);
-        last_response_ = response;
+        last_response_ = *response;
         if (response) {
             ESP_LOGD("opentherm_component", "forwarding response from boiler to thermostat: %#010x", response);
             sOT.sendResponse(response);
