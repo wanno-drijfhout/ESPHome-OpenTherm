@@ -48,7 +48,6 @@ public:
 
   void set_pid_output(OpenthermFloatOutput *pid_output) { pid_output_ = pid_output; }
 
-
   void setup() override {
     // This will be called once to set up the component
     // think of it as the setup() call in Arduino
@@ -58,11 +57,11 @@ public:
       sOT.begin(sHandleInterrupt, [=](unsigned long request, OpenThermResponseStatus status) -> void {
         ESP_LOGD("opentherm_component", "forwarding request from thermostat to boiler: %#010x", request);
         unsigned long response = mOT.sendRequest(request);
+        last_response_ = response;
         if (response) {
             ESP_LOGD("opentherm_component", "forwarding response from boiler to thermostat: %#010x", response);
             sOT.sendResponse(response);
         }
-        last_response_ = response;
       });
 
       thermostatSwitch->add_on_state_callback([=](bool state) -> void {
@@ -123,7 +122,7 @@ public:
     bool enableCooling = false; // this boiler is for heating only
     
     // Get/Set Boiler status
-    auto response = last_response != 0 ? last_response : mOT.setBoilerStatus(enableCentralHeating, enableHotWater, enableCooling);
+    auto response = last_response_ != 0 ? last_response_ : mOT.setBoilerStatus(enableCentralHeating, enableHotWater, enableCooling);
 
     bool isFlameOn = mOT.isFlameOn(response);
     bool isCentralHeatingActive = mOT.isCentralHeatingActive(response);
