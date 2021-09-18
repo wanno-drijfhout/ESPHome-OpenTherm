@@ -5,6 +5,7 @@
 #include "opentherm_climate.h"
 #include "opentherm_binary.h"
 #include "opentherm_output.h"
+#include <math.h>
 
 // Pins to OpenTherm Master (Thermostat)
 int mInPin = D2; 
@@ -55,20 +56,13 @@ public:
 
       mOT.begin(mHandleInterrupt);
       sOT.begin(sHandleInterrupt, [=](unsigned long request, OpenThermResponseStatus status) -> void {
-        ESP_LOGD("opentherm_component", "receiving request from thermostat: %#010x", request);
-        if (sOT.getDataID(request) == OpenThermMessageID::TSet) {
-          ESP_LOGI("opentherm_component", "request to change TSet");
-        } else if (sOT.getDataID(request) == OpenThermMessageID::TdhwSet) {
-          ESP_LOGI("opentherm_component", "request to change TdhwSet");
-        } else if (sOT.getDataID(request) == OpenThermMessageID::TsetCH2) {
-          ESP_LOGI("opentherm_component", "request to change TsetCH2");
-        } else if (sOT.getDataID(request) == OpenThermMessageID::TdhwSetUBTdhwSetLB) {
-          ESP_LOGI("opentherm_component", "request to change TdhwSetUBTdhwSetLB");
+        ESP_LOGD("opentherm_component", "forwarding request from thermostat to boiler: %#010x", request);
+        unsigned long response = mOT.sendRequest(request);
+        if (response) {
+            ESP_LOGD("opentherm_component", "forwarding response from boiler to thermostat: %#010x", response);
+            sOT.sendResponse(response);
         }
-        sOT.sendResponse(this->last_response);
-
-        // TODO: save PID set-point temperature internally
-        // TODO: set and handle "override"
+        this->last_response = response;
       });
 
       thermostatSwitch->add_on_state_callback([=](bool state) -> void {
@@ -128,9 +122,8 @@ public:
     bool enableHotWater = hotWaterClimate->mode == ClimateMode::CLIMATE_MODE_HEAT;
     bool enableCooling = false; // this boiler is for heating only
     
-    // Get Boiler status
-    auto response = mOT.setBoilerStatus(enableCentralHeating, enableHotWater, enableCooling);
-    this->last_response = response;
+    // Get/Set Boiler status
+    auto response = last_response != 0 ? last_response : mOT.setBoilerStatus(enableCentralHeating, enableHotWater, enableCooling);
 
     bool isFlameOn = mOT.isFlameOn(response);
     bool isCentralHeatingActive = mOT.isCentralHeatingActive(response);
@@ -140,28 +133,30 @@ public:
 
 
     // Set temperature depending on room thermostat
-    float heating_target_temperature;
+    float heating_target_temperature = nanf();
     if (this->pid_output_ != nullptr) {
       float pid_output = pid_output_->get_state();
-      if (pid_output == 0.0f) {
-        heating_target_temperature = 10.0f;
-      }
-      else {
+      if (pid_output != 0.0f) {
         heating_target_temperature =  pid_output * (heatingWaterClimate->target_temperature_high - heatingWaterClimate->target_temperature_low) 
-        + heatingWaterClimate->target_temperature_low;      
+        + heatingWaterClimate->target_temperature_low;  
+        ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (from PID Output)", heating_target_temperature);    
       }
-      ESP_LOGD("opentherm_component", "setBoilerTemperature  at %f °C (from PID Output)", heating_target_temperature);
     }
     else if (thermostatSwitch->state) {
       heating_target_temperature = heatingWaterClimate->target_temperature;
-      ESP_LOGD("opentherm_component", "setBoilerTemperature  at %f °C (from heating water climate)", heating_target_temperature);
+      ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (from heating water climate)", heating_target_temperature);
     }
-    else {
-      // If the room thermostat is off, set it to 10, so that the pump continues to operate
-      heating_target_temperature = 10.0;
-      ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (default low value)", heating_target_temperature);
+    // else {
+    //   // If the room thermostat is off, set it to 10, so that the pump continues to operate
+    //   heating_target_temperature = 10.0;
+    //   ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (default low value)", heating_target_temperature);
+    // }
+
+    if (!isnan(heating_target_temperature)) {
+      mOT.setBoilerTemperature(heating_target_temperature);
+    } else {
+      ESP_LOGD("opentherm_component", "will not setBoilerTemperature (no target temperature)", heating_target_temperature);
     }
-    mOT.setBoilerTemperature(heating_target_temperature);
 
     // Set hot water temperature
     setHotWaterTemperature(hotWaterClimate->target_temperature);
