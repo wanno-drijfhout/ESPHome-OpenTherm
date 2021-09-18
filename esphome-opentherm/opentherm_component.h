@@ -54,12 +54,19 @@ public:
 
       mOT.begin(mHandleInterrupt);
       sOT.begin(sHandleInterrupt, [=](unsigned long request, OpenThermResponseStatus status) -> void {
-        ESP_LOGD("opentherm_component", "forwarding request from thermostat to boiler: %#010x", request);
-        unsigned long response = mOT.sendRequest(request);
-        if (response) {
-            ESP_LOGD("opentherm_component", "forwarding response from boiler to thermostat: %#010x", response);
-            sOT.sendResponse(response);
+        ESP_LOGD("opentherm_component", "receiving request from thermostat: %#010x", request);
+        if (sOT.getDataID(request) == OpenThermMessageID::TSet) {
+          ESP_LOGI("opentherm_component", "request to change TSet");
+        } else if (sOT.getDataID(request) == OpenThermMessageID::TdhwSet) {
+          ESP_LOGI("opentherm_component", "request to change TdhwSet");
+        } else if (sOT.getDataID(request) == OpenThermMessageID::TsetCH2) {
+          ESP_LOGI("opentherm_component", "request to change TsetCH2");
+        } else if (sOT.getDataID(request) == OpenThermMessageID::TdhwSetUBTdhwSetLB) {
+          ESP_LOGI("opentherm_component", "request to change TdhwSetUBTdhwSetLB");
         }
+
+        // TODO: save PID set-point temperature internally
+        // TODO: set and handle "override"
       });
 
       thermostatSwitch->add_on_state_callback([=](bool state) -> void {
@@ -119,7 +126,7 @@ public:
     bool enableHotWater = hotWaterClimate->mode == ClimateMode::CLIMATE_MODE_HEAT;
     bool enableCooling = false; // this boiler is for heating only
     
-    //Set/Get Boiler Status
+    // Get Boiler status
     auto response = mOT.setBoilerStatus(enableCentralHeating, enableHotWater, enableCooling);
     bool isFlameOn = mOT.isFlameOn(response);
     bool isCentralHeatingActive = mOT.isCentralHeatingActive(response);
@@ -179,6 +186,9 @@ public:
     heatingWaterClimate->current_temperature = boilerTemperature;
     heatingWaterClimate->action = isCentralHeatingActive && isFlameOn ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_OFF;
     heatingWaterClimate->publish_state();
+
+    // Forward Boiler status to thermostat
+    sOT.sendResponse(response);
   }
 
 };
