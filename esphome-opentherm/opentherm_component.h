@@ -58,7 +58,7 @@ public:
         ESP_LOGD("opentherm_component", "forwarding request from thermostat to boiler: %#010x", request);
         sLastResponse = mOT.sendRequest(request);
         if (sLastResponse) {
-            ESP_LOGD("opentherm_component", "forwarding response from boiler to thermostat: %#010x", response);
+            ESP_LOGD("opentherm_component", "forwarding response from boiler to thermostat: %#010x", sLastResponse);
             sOT.sendResponse(sLastResponse);
         }
       });
