@@ -9,12 +9,12 @@
 // Pins to OpenTherm Master (Thermostat)
 int mInPin = D2; 
 int mOutPin = D1;
-OpenTherm mOT(mInPin, mOutPin /*, false */);
+OpenTherm mOT(mInPin, mOutPin, /*isSlave:*/ false);
 
 // Pins to OpenTherm Slave (Boiler)
 int sInPin = D6;
 int sOutPin = D7;
-OpenTherm sOT(sInPin, sOutPin, true);
+OpenTherm sOT(sInPin, sOutPin, /*isSlave:*/ true);
 
 ICACHE_RAM_ATTR void mHandleInterrupt() {
 	mOT.handleInterrupt();
@@ -54,10 +54,10 @@ public:
 
       mOT.begin(mHandleInterrupt);
       sOT.begin(sHandleInterrupt, [=](unsigned long request, OpenThermResponseStatus status) -> void {
-        ESP_LOGI("opentherm_component", "forwarding request from thermostat to boiler: %#010x", request);
+        ESP_LOGD("opentherm_component", "forwarding request from thermostat to boiler: %#010x", request);
         unsigned long response = mOT.sendRequest(request);
         if (response) {
-            ESP_LOGI("opentherm_component", "forwarding response from boiler to thermostat: %#010x", response);
+            ESP_LOGD("opentherm_component", "forwarding response from boiler to thermostat: %#010x", response);
             sOT.sendResponse(response);
         }
       });
@@ -109,15 +109,15 @@ public:
 
   void update() override {
 
+    // Process Thermostat Status
+    sOT.process();
+
     ESP_LOGD("opentherm_component", "update heatingWaterClimate: %i", heatingWaterClimate->mode);
     ESP_LOGD("opentherm_component", "update hotWaterClimate: %i", hotWaterClimate->mode);
     
     bool enableCentralHeating = heatingWaterClimate->mode == ClimateMode::CLIMATE_MODE_HEAT;
     bool enableHotWater = hotWaterClimate->mode == ClimateMode::CLIMATE_MODE_HEAT;
     bool enableCooling = false; // this boiler is for heating only
-
-    // Process Thermostat Status
-    sOT.process();
     
     //Set/Get Boiler Status
     auto response = mOT.setBoilerStatus(enableCentralHeating, enableHotWater, enableCooling);
