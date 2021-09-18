@@ -133,7 +133,7 @@ public:
 
 
     // Set temperature depending on room thermostat
-    float heating_target_temperature = nanf();
+    float heating_target_temperature = nanf("");
     if (this->pid_output_ != nullptr) {
       float pid_output = pid_output_->get_state();
       if (pid_output != 0.0f) {
