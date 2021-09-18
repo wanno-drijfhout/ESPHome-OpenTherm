@@ -28,8 +28,7 @@ ICACHE_RAM_ATTR void sHandleInterrupt() {
 class OpenthermComponent: public PollingComponent {
 private:
   const char *TAG = "opentherm_component";
-  OpenthermFloatOutput *pid_output_; 
-  unsigned long last_response_;
+  OpenthermFloatOutput *pid_output_;
 public:
   Switch *thermostatSwitch = new OpenthermSwitch();
   Sensor *external_temperature_sensor = new Sensor();
@@ -40,7 +39,8 @@ public:
   Sensor *heating_target_temperature_sensor = new Sensor();
   OpenthermClimate *hotWaterClimate = new OpenthermClimate();
   OpenthermClimate *heatingWaterClimate = new OpenthermClimate();
-  BinarySensor *flame = new OpenthermBinarySensor();
+  BinarySensor *flame = new OpenthermBinarySensor(); 
+  unsigned long last_response_;
   
   // Set 3 sec. to give time to read all sensors (and not appear in HA as not available)
   OpenthermComponent(): PollingComponent(3000) {
@@ -57,11 +57,11 @@ public:
       sOT.begin(sHandleInterrupt, [=](unsigned long request, OpenThermResponseStatus status) -> void {
         ESP_LOGD("opentherm_component", "forwarding request from thermostat to boiler: %#010x", request);
         unsigned long response = mOT.sendRequest(request);
-        last_response_ = *response;
         if (response) {
             ESP_LOGD("opentherm_component", "forwarding response from boiler to thermostat: %#010x", response);
             sOT.sendResponse(response);
         }
+        last_response_ = response;
       });
 
       thermostatSwitch->add_on_state_callback([=](bool state) -> void {
