@@ -29,7 +29,7 @@ class OpenthermComponent: public PollingComponent {
 private:
   const char *TAG = "opentherm_component";
   OpenthermFloatOutput *pid_output_; 
-  unsigned long last_response;
+  unsigned long last_response_;
 public:
   Switch *thermostatSwitch = new OpenthermSwitch();
   Sensor *external_temperature_sensor = new Sensor();
@@ -62,7 +62,7 @@ public:
             ESP_LOGD("opentherm_component", "forwarding response from boiler to thermostat: %#010x", response);
             sOT.sendResponse(response);
         }
-        last_response = response;
+        last_response_ = response;
       });
 
       thermostatSwitch->add_on_state_callback([=](bool state) -> void {
