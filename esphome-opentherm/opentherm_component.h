@@ -188,7 +188,7 @@ public:
     heatingWaterClimate->publish_state();
 
     // Forward Boiler status to thermostat
-    sOT.sendResponse(response);
+    // sOT.sendResponse(response);
   }
 
 };
