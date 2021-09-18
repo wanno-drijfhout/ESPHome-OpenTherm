@@ -62,7 +62,7 @@ public:
             ESP_LOGD("opentherm_component", "forwarding response from boiler to thermostat: %#010x", response);
             sOT.sendResponse(response);
         }
-        this->last_response = response;
+        // this->last_response = response;
       });
 
       thermostatSwitch->add_on_state_callback([=](bool state) -> void {
