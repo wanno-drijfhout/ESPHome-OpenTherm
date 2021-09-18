@@ -16,6 +16,7 @@ OpenTherm mOT(mInPin, mOutPin, /*isSlave:*/ false);
 int sInPin = D6;
 int sOutPin = D7;
 OpenTherm sOT(sInPin, sOutPin, /*isSlave:*/ true);
+unsigned long sLastResponse = 0;
 
 ICACHE_RAM_ATTR void mHandleInterrupt() {
 	mOT.handleInterrupt();
@@ -40,7 +41,6 @@ public:
   OpenthermClimate *hotWaterClimate = new OpenthermClimate();
   OpenthermClimate *heatingWaterClimate = new OpenthermClimate();
   BinarySensor *flame = new OpenthermBinarySensor(); 
-  unsigned long last_response_;
   
   // Set 3 sec. to give time to read all sensors (and not appear in HA as not available)
   OpenthermComponent(): PollingComponent(3000) {
@@ -56,12 +56,11 @@ public:
       mOT.begin(mHandleInterrupt);
       sOT.begin(sHandleInterrupt, [=](unsigned long request, OpenThermResponseStatus status) -> void {
         ESP_LOGD("opentherm_component", "forwarding request from thermostat to boiler: %#010x", request);
-        unsigned long response = mOT.sendRequest(request);
-        if (response) {
+        sLastResponse = mOT.sendRequest(request);
+        if (sLastResponse) {
             ESP_LOGD("opentherm_component", "forwarding response from boiler to thermostat: %#010x", response);
-            sOT.sendResponse(response);
+            sOT.sendResponse(sLastResponse);
         }
-        this->last_response_ = response;
       });
 
       thermostatSwitch->add_on_state_callback([=](bool state) -> void {
@@ -122,7 +121,7 @@ public:
     bool enableCooling = false; // this boiler is for heating only
     
     // Get/Set Boiler status
-    auto response = last_response_ != 0 ? last_response_ : mOT.setBoilerStatus(enableCentralHeating, enableHotWater, enableCooling);
+    auto response = sLastResponse != 0 ? sLastResponse : mOT.setBoilerStatus(enableCentralHeating, enableHotWater, enableCooling);
 
     bool isFlameOn = mOT.isFlameOn(response);
     bool isCentralHeatingActive = mOT.isCentralHeatingActive(response);
