@@ -166,8 +166,8 @@ climate:
     id: pid_climate
     name: "PID Climate Controller"
     visual:
-      min_temperature: 16 °C
-      max_temperature: 28 °C
+      min_temperature: 15 °C
+      max_temperature: 35 °C
       temperature_step: 0.5 °C
     sensor: room_temperature_sensor
     default_target_temperature: 20 °C
