@@ -174,12 +174,12 @@ public:
 
     // Publish status of thermostat that controls hot water
     domestic_hot_water_climate->current_temperature = domestic_hot_water_temperature;
-    domestic_hot_water_climate->action = is_hot_water_active ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_OFF;
+    domestic_hot_water_climate->action = is_hot_water_active ? (is_flame_on ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_IDLE) : ClimateAction::CLIMATE_ACTION_OFF;
     domestic_hot_water_climate->publish_state();
     
     // Publish status of thermostat that controls heating
     central_heating_water_climate->current_temperature = boiler_temperature;
-    central_heating_water_climate->action = is_central_heating_active && is_flame_on ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_OFF;
+    central_heating_water_climate->action = is_central_heating_active ? (is_flame_on ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_IDLE) : ClimateAction::CLIMATE_ACTION_OFF;
     central_heating_water_climate->publish_state();
   }
 
