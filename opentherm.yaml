@@ -90,13 +90,13 @@ sensor:
       device_class: temperature
       
   # - platform: homeassistant
-  #   id: actual_temperature_sensor
-  #   entity_id: sensor.actual_temperature_sensor
+  #   id: room_temperature_sensor
+  #   entity_id: sensor.room_temperature_sensor
   #   name: "Actual temperature"
   #   unit_of_measurement: °C
   #   device_class: temperature
   - platform: dallas
-    id: actual_temperature_sensor
+    id: room_temperature_sensor
     name: "Actual temperature"
     unit_of_measurement: °C
     device_class: temperature
@@ -105,12 +105,15 @@ sensor:
   - platform: pid
     name: "PID Climate Result"
     type: RESULT
+    disabled_by_default: true
   - platform: pid
     name: "PID Climate HEAT"
     type: HEAT
+    disabled_by_default: true
   - platform: pid
     name: "PID Climate ERROR"
     type: ERROR
+    disabled_by_default: true
 
 binary_sensor:
   - platform: custom
@@ -143,9 +146,9 @@ climate:
       };
     climates:
       - id: domestic_hot_water
-        name: "Hot water"
+        name: "Domestic hot water"
       - id: central_heating_water
-        name: "Heating water"
+        name: "Central heating water"
   - platform: pid
     id: pid_climate
     name: "PID Climate Controller"
@@ -153,7 +156,7 @@ climate:
       min_temperature: 16 °C
       max_temperature: 28 °C
       temperature_step: 0.5 °C
-    sensor: actual_temperature_sensor
+    sensor: room_temperature_sensor
     default_target_temperature: 20 °C
     heat_output: pid_output
     control_parameters:
