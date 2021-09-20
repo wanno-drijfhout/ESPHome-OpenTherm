@@ -35,8 +35,8 @@ public:
   Sensor *outside_temperature_sensor = new Sensor();
   Sensor *return_temperature_sensor = new Sensor();
   Sensor *boiler_temperature_sensor = new Sensor();
-  Sensor *pressure_sensor = new Sensor();
-  Sensor *modulation_sensor = new Sensor();
+  Sensor *central_heating_water_pressure_sensor = new Sensor();
+  Sensor *boiler_modulation_sensor = new Sensor();
   Sensor *central_heating_target_temperature_sensor = new Sensor();
   OpenthermClimate *domestic_hot_water_climate = new OpenthermClimate();
   OpenthermClimate *central_heating_water_climate = new OpenthermClimate();
@@ -99,12 +99,12 @@ public:
       return mOT.isValidResponse(response);
   }
 
-  float getModulation() {
+  float getBoilerModulation() {
     unsigned long response = mOT.sendRequest(mOT.buildRequest(OpenThermRequestType::READ, OpenThermMessageID::RelModLevel, 0));
     return mOT.isValidResponse(response) ? mOT.getFloat(response) : NAN;
   }
 
-  float getPressure() {
+  float getCentralHeatingWaterPressure() {
     unsigned long response = mOT.sendRequest(mOT.buildRequest(OpenThermRequestType::READ, OpenThermMessageID::CHPressure, 0));
     return mOT.isValidResponse(response) ? mOT.getFloat(response) : NAN;
   }
@@ -160,16 +160,16 @@ public:
 
     float boiler_temperature = mOT.getBoilerTemperature();
     float outside_temperature = getOutsideTemperature();
-    float pressure = getPressure();
-    float modulation = getModulation();
+    float central_heating_water_pressure = getCentralHeatingWaterPressure();
+    float boiler_modulation = getBoilerModulation();
 
     // Publish sensor values
     flame_sensor->publish_state(is_flame_on); 
     outside_temperature_sensor->publish_state(outside_temperature);
     return_temperature_sensor->publish_state(return_temperature);
     boiler_temperature_sensor->publish_state(boiler_temperature);
-    pressure_sensor->publish_state(pressure);
-    modulation_sensor->publish_state(modulation);
+    central_heating_water_pressure_sensor->publish_state(central_heating_water_pressure);
+    boiler_modulation_sensor->publish_state(boiler_modulation);
     central_heating_target_temperature_sensor->publish_state(central_heating_target_temperature);
 
     // Publish status of thermostat that controls hot water
