@@ -68,26 +68,32 @@ sensor:
       unit_of_measurement: °C
       accuracy_decimals: 1
       device_class: temperature
+      icon: "mdi:water-boiler"
     - name: "Outside Temperature"
       unit_of_measurement: °C
       accuracy_decimals: 0
       device_class: temperature
+      icon: "mdi:sun-thermometer-outline"
     - name: "Return Temperature"
       unit_of_measurement: °C
       accuracy_decimals: 1
       device_class: temperature
+      icon: "mdi:water-sync"
     - name: "Central Heating Water Pressure"
       unit_of_measurement: hPa
       accuracy_decimals: 1
       device_class: pressure
+      icon: "mdi:hydraulic-oil-level"
     - name: "Boiler Modulation"
       unit_of_measurement: "%"
       accuracy_decimals: 0
       device_class: power_factor
+      icon: "mdi:chart-bell-curve-cumulative"
     - name: "Central Heating Target Temperature"
       unit_of_measurement: °C
       accuracy_decimals: 1
       device_class: temperature
+      icon: "mdi:thermostat"
       
   - platform: homeassistant
     id: room_temperature_sensor
@@ -103,19 +109,23 @@ sensor:
     unit_of_measurement: °C
     device_class: temperature
     index: 0
+    icon: "mdi:home-thermometer-outline"
 
   - platform: pid
     name: "PID Climate Result"
     type: RESULT
     disabled_by_default: true
+    icon: "mdi:vector-curve"
   - platform: pid
     name: "PID Climate HEAT"
     type: HEAT
     disabled_by_default: true
+    icon: "mdi:vector-curve"
   - platform: pid
     name: "PID Climate ERROR"
     type: ERROR
     disabled_by_default: true
+    icon: "mdi:vector-curve"
 
 binary_sensor:
   - platform: custom
@@ -133,6 +143,7 @@ switch:
       return {openthermComp->thermostat_switch};
     switches:
       name: "PID Climate Disabled"
+      icon: "mdi:vector-curve"
   - platform: template
     name: "PID Climate Autotune"
     turn_on_action:
