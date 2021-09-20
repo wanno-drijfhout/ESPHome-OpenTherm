@@ -47,6 +47,10 @@ output:
       #min_power: 30.00%
       #max_power: 60.00%
 
+dallas:
+  # https://diyless.com/blog/home-assistant-opentherm-thermostat
+  - pin: 14
+
 sensor:
   - platform: custom
     lambda: |-    
@@ -85,12 +89,18 @@ sensor:
       accuracy_decimals: 1
       device_class: temperature
       
-  - platform: homeassistant
+  # - platform: homeassistant
+  #   id: actual_temperature_sensor
+  #   entity_id: sensor.actual_temperature_sensor
+  #   name: "Actual temperature"
+  #   unit_of_measurement: °C
+  #   device_class: temperature
+  - platform: dallas
     id: actual_temperature_sensor
-    entity_id: sensor.actual_temperature_sensor
     name: "Actual temperature"
     unit_of_measurement: °C
     device_class: temperature
+    index: 0
 
   - platform: pid
     name: "PID Climate Result"
