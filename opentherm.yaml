@@ -89,15 +89,17 @@ sensor:
       accuracy_decimals: 1
       device_class: temperature
       
-  # - platform: homeassistant
-  #   id: room_temperature_sensor
-  #   entity_id: sensor.room_temperature_sensor
-  #   name: "Actual temperature"
-  #   unit_of_measurement: °C
-  #   device_class: temperature
-  - platform: dallas
+  - platform: homeassistant
     id: room_temperature_sensor
-    name: "Actual temperature"
+    # You may want to replace entity_id by a room thermostat that isn't close to the boiler
+    entity_id: sensor.thermostat_device_temperature_sensor
+    name: "Room temperature"
+    unit_of_measurement: °C
+    device_class: temperature
+
+  - platform: dallas
+    id: thermostat_device_temperature_sensor
+    name: "Thermostat device temperature"
     unit_of_measurement: °C
     device_class: temperature
     index: 0
