@@ -16,7 +16,7 @@ OpenTherm mOT(mInPin, mOutPin, /*isSlave:*/ false);
 int sInPin = D6;
 int sOutPin = D7;
 OpenTherm sOT(sInPin, sOutPin, /*isSlave:*/ true);
-unsigned long sLastResponse = 0;
+unsigned long slave_last_response = 0;
 
 ICACHE_RAM_ATTR void mHandleInterrupt() {
 	mOT.handleInterrupt();
@@ -31,22 +31,22 @@ private:
   const char *TAG = "opentherm_component";
   OpenthermFloatOutput *pid_output_;
 public:
-  Switch *thermostatSwitch = new OpenthermSwitch();
-  Sensor *external_temperature_sensor = new Sensor();
+  Switch *thermostat_switch = new OpenthermSwitch();
+  Sensor *outside_temperature_sensor = new Sensor();
   Sensor *return_temperature_sensor = new Sensor();
-  Sensor *boiler_temperature = new Sensor();
+  Sensor *boiler_temperature_sensor = new Sensor();
   Sensor *pressure_sensor = new Sensor();
   Sensor *modulation_sensor = new Sensor();
-  Sensor *heating_target_temperature_sensor = new Sensor();
-  OpenthermClimate *hotWaterClimate = new OpenthermClimate();
-  OpenthermClimate *heatingWaterClimate = new OpenthermClimate();
-  BinarySensor *flame = new OpenthermBinarySensor(); 
+  Sensor *central_heating_target_temperature_sensor = new Sensor();
+  OpenthermClimate *domestic_hot_water_climate = new OpenthermClimate();
+  OpenthermClimate *central_heating_water_climate = new OpenthermClimate();
+  BinarySensor *flame_sensor = new OpenthermBinarySensor(); 
   
   // Set 3 sec. to give time to read all sensors (and not appear in HA as not available)
   OpenthermComponent(): PollingComponent(3000) {
   }
 
-  void set_pid_output(OpenthermFloatOutput *pid_output) { pid_output_ = pid_output; }
+  void setPidOutput(OpenthermFloatOutput *pid_output) { pid_output_ = pid_output; }
 
   void setup() override {
     // This will be called once to set up the component
@@ -56,42 +56,43 @@ public:
       mOT.begin(mHandleInterrupt);
       sOT.begin(sHandleInterrupt, [=](unsigned long request, OpenThermResponseStatus status) -> void {
         ESP_LOGD("opentherm_component", "forwarding request from thermostat to boiler: %#010x", request);
-        sLastResponse = mOT.sendRequest(request);
-        if (sLastResponse) {
-            ESP_LOGD("opentherm_component", "forwarding response from boiler to thermostat: %#010x", sLastResponse);
-            sOT.sendResponse(sLastResponse);
+        slave_last_response = mOT.sendRequest(request);
+        if (slave_last_response) {
+            ESP_LOGD("opentherm_component", "forwarding response from boiler to thermostat: %#010x", slave_last_response);
+            sOT.sendResponse(slave_last_response);
         }
       });
 
-      thermostatSwitch->add_on_state_callback([=](bool state) -> void {
-        ESP_LOGD ("opentherm_component", "termostatSwitch_on_state_callback %d", state);    
+      thermostat_switch->add_on_state_callback([=](bool state) -> void {
+        ESP_LOGD ("opentherm_component", "thermostat_switch_on_state_callback %d", state);    
       });
 
-      // Adjust HeatingWaterClimate depending on PID
-      // heatingWaterClimate->set_supports_heat_cool_mode(this->pid_output_ != nullptr);
-      heatingWaterClimate->set_supports_two_point_target_temperature(this->pid_output_ != nullptr);
+      domestic_hot_water_climate->set_temperature_settings(5, 6, 0);
+      domestic_hot_water_climate->setup();
 
-      hotWaterClimate->set_temperature_settings(5, 6, 0);
-      heatingWaterClimate->set_temperature_settings(0, 0, 30);
-      hotWaterClimate->setup();
-      heatingWaterClimate->setup();
+      // Adjust HeatingWaterClimate depending on PID
+      // central_heating_water_climate->set_supports_heat_cool_mode(this->pid_output_ != nullptr);
+      central_heating_water_climate->set_supports_two_point_target_temperature(this->pid_output_ != nullptr);
+      central_heating_water_climate->set_temperature_settings(0, 0, 30);
+      central_heating_water_climate->setup();
   }
-  float getExternalTemperature() {
+
+  float getOutsideTemperature() {
       unsigned long response = mOT.sendRequest(mOT.buildRequest(OpenThermRequestType::READ, OpenThermMessageID::Toutside, 0));
-      return mOT.isValidResponse(response) ? mOT.getFloat(response) : -1;
+      return mOT.isValidResponse(response) ? mOT.getFloat(response) : NAN;
   }
 
   float getReturnTemperature() {
       unsigned long response = mOT.sendRequest(mOT.buildRequest(OpenThermRequestType::READ, OpenThermMessageID::Tret, 0));
-      return mOT.isValidResponse(response) ? mOT.getFloat(response) : -1;
+      return mOT.isValidResponse(response) ? mOT.getFloat(response) : NAN;
   }
   
-  float getHotWaterTemperature() {
+  float getDomesticHotWaterTemperature() {
       unsigned long response = mOT.sendRequest(mOT.buildRequest(OpenThermRequestType::READ, OpenThermMessageID::Tdhw, 0));
-      return mOT.isValidResponse(response) ? mOT.getFloat(response) : -1;
+      return mOT.isValidResponse(response) ? mOT.getFloat(response) : NAN;
   }
 
-  bool setHotWaterTemperature(float temperature) {
+  bool setDomesticHotWaterTemperature(float temperature) {
 	    unsigned int data = mOT.temperatureToData(temperature);
       unsigned long request = mOT.buildRequest(OpenThermRequestType::WRITE, OpenThermMessageID::TdhwSet, data);
       unsigned long response = mOT.sendRequest(request);
@@ -100,12 +101,12 @@ public:
 
   float getModulation() {
     unsigned long response = mOT.sendRequest(mOT.buildRequest(OpenThermRequestType::READ, OpenThermMessageID::RelModLevel, 0));
-    return mOT.isValidResponse(response) ? mOT.getFloat(response) : -1;
+    return mOT.isValidResponse(response) ? mOT.getFloat(response) : NAN;
   }
 
   float getPressure() {
     unsigned long response = mOT.sendRequest(mOT.buildRequest(OpenThermRequestType::READ, OpenThermMessageID::CHPressure, 0));
-    return mOT.isValidResponse(response) ? mOT.getFloat(response) : -1;
+    return mOT.isValidResponse(response) ? mOT.getFloat(response) : NAN;
   }
 
   void update() override {
@@ -113,76 +114,73 @@ public:
     // Process Thermostat Status
     sOT.process();
 
-    ESP_LOGD("opentherm_component", "update heatingWaterClimate: %i", heatingWaterClimate->mode);
-    ESP_LOGD("opentherm_component", "update hotWaterClimate: %i", hotWaterClimate->mode);
+    ESP_LOGD("opentherm_component", "update central_heating_water_climate: %i", central_heating_water_climate->mode);
+    ESP_LOGD("opentherm_component", "update domestic_hot_water_climate: %i", domestic_hot_water_climate->mode);
     
-    bool enableCentralHeating = heatingWaterClimate->mode == ClimateMode::CLIMATE_MODE_HEAT;
-    bool enableHotWater = hotWaterClimate->mode == ClimateMode::CLIMATE_MODE_HEAT;
-    bool enableCooling = false; // this boiler is for heating only
+    bool enable_central_heating = central_heating_water_climate->mode == ClimateMode::CLIMATE_MODE_HEAT;
+    bool enable_domestic_hot_water = domestic_hot_water_climate->mode == ClimateMode::CLIMATE_MODE_HEAT;
+    bool enable_cooling = false; // this boiler is for heating only
     
     // Get/Set Boiler status
-    auto response = sLastResponse != 0 ? sLastResponse : mOT.setBoilerStatus(enableCentralHeating, enableHotWater, enableCooling);
+    auto response = slave_last_response != 0 ? slave_last_response : mOT.setBoilerStatus(enable_central_heating, enable_domestic_hot_water, enable_cooling);
 
-    bool isFlameOn = mOT.isFlameOn(response);
-    bool isCentralHeatingActive = mOT.isCentralHeatingActive(response);
-    bool isHotWaterActive = mOT.isHotWaterActive(response);
+    bool is_flame_on = mOT.isFlameOn(response);
+    bool is_central_heating_active = mOT.isCentralHeatingActive(response);
+    bool is_hot_water_active = mOT.isHotWaterActive(response);
     float return_temperature = getReturnTemperature();
-    float hotWater_temperature = getHotWaterTemperature();
-
+    float domestic_hot_water_temperature = getDomesticHotWaterTemperature();
 
     // Set temperature depending on room thermostat
-    float heating_target_temperature = nanf("");
+    float central_heating_target_temperature = NAN;
     if (this->pid_output_ != nullptr) {
       float pid_output = pid_output_->get_state();
       if (pid_output != 0.0f) {
-        heating_target_temperature =  pid_output * (heatingWaterClimate->target_temperature_high - heatingWaterClimate->target_temperature_low) 
-        + heatingWaterClimate->target_temperature_low;  
-        ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (from PID Output)", heating_target_temperature);    
+        central_heating_target_temperature = pid_output * (central_heating_water_climate->target_temperature_high - central_heating_water_climate->target_temperature_low) + central_heating_water_climate->target_temperature_low;
+        ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (from PID Output)", central_heating_target_temperature);    
       }
     }
-    else if (thermostatSwitch->state) {
-      heating_target_temperature = heatingWaterClimate->target_temperature;
-      ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (from heating water climate)", heating_target_temperature);
+    else if (thermostat_switch->state) {
+      central_heating_target_temperature = central_heating_water_climate->target_temperature;
+      ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (from heating water climate)", central_heating_target_temperature);
     }
     // else {
     //   // If the room thermostat is off, set it to 10, so that the pump continues to operate
-    //   heating_target_temperature = 10.0;
-    //   ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (default low value)", heating_target_temperature);
+    //   central_heating_target_temperature = 10.0;
+    //   ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (default low value)", central_heating_target_temperature);
     // }
 
-    if (!isnan(heating_target_temperature)) {
-      mOT.setBoilerTemperature(heating_target_temperature);
+    if (!isnan(central_heating_target_temperature)) {
+      mOT.setBoilerTemperature(central_heating_target_temperature);
     } else {
-      ESP_LOGD("opentherm_component", "will not setBoilerTemperature (no target temperature)", heating_target_temperature);
+      ESP_LOGD("opentherm_component", "will not setBoilerTemperature (no target temperature)", central_heating_target_temperature);
     }
 
     // Set hot water temperature
-    setHotWaterTemperature(hotWaterClimate->target_temperature);
+    setDomesticHotWaterTemperature(domestic_hot_water_climate->target_temperature);
 
-    float boilerTemperature = mOT.getBoilerTemperature();
-    float ext_temperature = getExternalTemperature();
+    float boiler_temperature = mOT.getBoilerTemperature();
+    float outside_temperature = getOutsideTemperature();
     float pressure = getPressure();
     float modulation = getModulation();
 
     // Publish sensor values
-    flame->publish_state(isFlameOn); 
-    external_temperature_sensor->publish_state(ext_temperature);
+    flame_sensor->publish_state(is_flame_on); 
+    outside_temperature_sensor->publish_state(outside_temperature);
     return_temperature_sensor->publish_state(return_temperature);
-    boiler_temperature->publish_state(boilerTemperature);
+    boiler_temperature_sensor->publish_state(boiler_temperature);
     pressure_sensor->publish_state(pressure);
     modulation_sensor->publish_state(modulation);
-    
-    heating_target_temperature_sensor->publish_state(heating_target_temperature);
+    central_heating_target_temperature_sensor->publish_state(central_heating_target_temperature);
 
     // Publish status of thermostat that controls hot water
-    hotWaterClimate->current_temperature = hotWater_temperature;
-    hotWaterClimate->action = isHotWaterActive ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_OFF;
-    hotWaterClimate->publish_state();
+    domestic_hot_water_climate->current_temperature = domestic_hot_water_temperature;
+    domestic_hot_water_climate->action = is_hot_water_active ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_OFF;
+    domestic_hot_water_climate->publish_state();
     
     // Publish status of thermostat that controls heating
-    heatingWaterClimate->current_temperature = boilerTemperature;
-    heatingWaterClimate->action = isCentralHeatingActive && isFlameOn ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_OFF;
-    heatingWaterClimate->publish_state();
+    central_heating_water_climate->current_temperature = boiler_temperature;
+    central_heating_water_climate->action = is_central_heating_active && is_flame_on ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_OFF;
+    central_heating_water_climate->publish_state();
   }
 
 };

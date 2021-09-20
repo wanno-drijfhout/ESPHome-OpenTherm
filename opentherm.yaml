@@ -39,7 +39,7 @@ output:
     lambda: |-
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
       auto opentherm_pid_output = new OpenthermFloatOutput();
-      openthermComp->set_pid_output(opentherm_pid_output);
+      openthermComp->setPidOutput(opentherm_pid_output);
       App.register_component(opentherm_pid_output);     
       return {opentherm_pid_output};
     outputs:
@@ -52,19 +52,19 @@ sensor:
     lambda: |-    
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
       return { 
-        openthermComp->boiler_temperature, 
-        openthermComp->external_temperature_sensor, 
+        openthermComp->boiler_temperature_sensor,
+        openthermComp->outside_temperature_sensor, 
         openthermComp->return_temperature_sensor, 
         openthermComp->pressure_sensor,
         openthermComp->modulation_sensor,
-        openthermComp->heating_target_temperature_sensor
+        openthermComp->central_heating_target_temperature_sensor
       };
     sensors:
     - name: "Boiler Temperature"
       unit_of_measurement: °C
       accuracy_decimals: 1
       device_class: temperature
-    - name: "External Temperature"
+    - name: "Outside Temperature"
       unit_of_measurement: °C
       accuracy_decimals: 0
       device_class: temperature
@@ -91,6 +91,7 @@ sensor:
     name: "Actual temperature"
     unit_of_measurement: °C
     ###device_class: temperature
+
   - platform: pid
     name: "PID Climate Result"
     type: RESULT    
@@ -105,7 +106,7 @@ binary_sensor:
   - platform: custom
     lambda: |-
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
-      return {openthermComp->flame};
+      return {openthermComp->flame_sensor};
     binary_sensors:
     - name: "Flame"
       device_class: heat
@@ -114,9 +115,9 @@ switch:
   - platform: custom
     lambda: |-
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
-      return {openthermComp->thermostatSwitch};
+      return {openthermComp->thermostat_switch};
     switches:
-      name: "Disable PID"
+      name: "PID Climate Disabled"
   - platform: template
     name: "PID Climate Autotune"
     turn_on_action:
@@ -127,13 +128,13 @@ climate:
     lambda: |-
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
       return {
-        openthermComp->hotWaterClimate, 
-        openthermComp->heatingWaterClimate
+        openthermComp->domestic_hot_water_climate, 
+        openthermComp->central_heating_water_climate
       };
     climates:
-      - id: hot_water
+      - id: domestic_hot_water
         name: "Hot water"
-      - id: heating_water
+      - id: central_heating_water
         name: "Heating water"
   - platform: pid
     id: pid_climate
@@ -143,7 +144,7 @@ climate:
       max_temperature: 28 °C
       temperature_step: 0.5 °C
     sensor: temperature_sensor
-    default_target_temperature: 20°C
+    default_target_temperature: 20 °C
     heat_output: pid_output
     control_parameters:
       kp: 0.38197
