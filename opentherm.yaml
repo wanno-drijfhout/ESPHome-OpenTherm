@@ -38,12 +38,12 @@ output:
     type: float
     lambda: |-
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
-      auto opentherm_pid_output = new OpenthermFloatOutput();
-      openthermComp->setPidOutput(opentherm_pid_output);
-      App.register_component(opentherm_pid_output);     
-      return {opentherm_pid_output};
+      auto thermostat_modulation = new OpenthermFloatOutput();
+      openthermComp->setThermostatModulation(thermostat_modulation);
+      App.register_component(thermostat_modulation);     
+      return {thermostat_modulation};
     outputs:
-      id: pid_output
+      id: thermostat_modulation
       #min_power: 30.00%
       #max_power: 60.00%
 
@@ -74,7 +74,7 @@ sensor:
       accuracy_decimals: 1
       device_class: temperature
       icon: "mdi:water-sync"
-    - name: "Boiler Water Pressure"
+    - name: "Boiler Pressure"
       unit_of_measurement: hPa
       accuracy_decimals: 1
       device_class: pressure
@@ -113,20 +113,20 @@ sensor:
     icon: "mdi:home-thermometer-outline"
 
   - platform: pid
-    name: "PID Climate Result"
+    name: "Modulating Thermostat PID Result"
     type: RESULT
-    disabled_by_default: true
     icon: "mdi:vector-curve"
+    disabled_by_default: true
   - platform: pid
-    name: "PID Climate HEAT"
+    name: "Modulating Thermostat PID HEAT"
     type: HEAT
-    disabled_by_default: true
     icon: "mdi:vector-curve"
+    disabled_by_default: true
   - platform: pid
-    name: "PID Climate ERROR"
+    name: "Modulating Thermostat PID ERROR"
     type: ERROR
-    disabled_by_default: true
     icon: "mdi:vector-curve"
+    disabled_by_default: true
 
 binary_sensor:
   - platform: custom
@@ -141,14 +141,14 @@ switch:
   - platform: custom
     lambda: |-
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
-      return {openthermComp->thermostat_switch};
+      return {openthermComp->modulating_thermostat_switch};
     switches:
-      name: "PID Climate Disabled"
+      name: "Modulating Thermostat Enabled"
       icon: "mdi:vector-curve"
   - platform: template
-    name: "PID Climate Autotune"
+    name: "Modulating Thermostat Autotune"
     turn_on_action:
-      - climate.pid.autotune: pid_climate      
+      - climate.pid.autotune: modulating_thermostat      
 
 climate:
   - platform: custom
@@ -164,15 +164,15 @@ climate:
       - id: central_heating
         name: "Central Heating"
   - platform: pid
-    id: pid_climate
-    name: "PID Thermostat"
+    id: modulating_thermostat
+    name: "Modulating Thermostat"
     visual:
       min_temperature: 15 °C
       max_temperature: 35 °C
       temperature_step: 0.5 °C
     sensor: room_temperature_sensor
     default_target_temperature: 20 °C
-    heat_output: pid_output
+    heat_output: thermostat_modulation
     control_parameters:
       kp: 0.38197
       ki: 0.01012

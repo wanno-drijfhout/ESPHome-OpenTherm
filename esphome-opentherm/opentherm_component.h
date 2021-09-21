@@ -39,9 +39,9 @@ ICACHE_RAM_ATTR void thermostatHandleInterrupt() {
 class OpenthermComponent: public PollingComponent {
 private:
   const char *TAG = "opentherm_component";
-  OpenthermFloatOutput *pid_output_;
+  OpenthermFloatOutput *thermostat_modulation_;
 public:
-  Switch *thermostat_switch = new OpenthermSwitch();
+  Switch *modulating_thermostat_switch = new OpenthermSwitch(true);
   Sensor *outside_temperature_sensor = new Sensor();
   Sensor *return_temperature_sensor = new Sensor();
   Sensor *boiler_modulation_sensor = new Sensor();
@@ -56,40 +56,36 @@ public:
   OpenthermComponent(): PollingComponent(3000) {
   }
 
-  void setPidOutput(OpenthermFloatOutput *pid_output) { pid_output_ = pid_output; }
-
   void setup() override {
     // This will be called once to set up the component
     // think of it as the setup() call in Arduino
-      ESP_LOGD("opentherm_component", "Setup");
+    ESP_LOGD("opentherm_component", "Setup");
 
-      boilerOT.begin(boilerHandleInterrupt);
-      if (is_gateway){
-        ESP_LOGI("opentherm_component", "Operating as gateway");
-        thermostatOT.begin(thermostatHandleInterrupt, [=](unsigned long request, OpenThermResponseStatus status) -> void {
-          if (!thermostatOT.isValidRequest(request)) {
-            ESP_LOGE("opentherm_component", "message ET%#010x received from thermostat (message type %s, data id %d)", request, thermostatOT.messageTypeToString(thermostatOT.getMessageType(request)), boilerOT.getDataID(request));
-          } else {
-            ESP_LOGD("opentherm_component", "message T%#010x received from thermostat", request);
-          }
-          thermostat_last_request = request;
-        });
-      }
-
-      thermostat_switch->add_on_state_callback([=](bool state) -> void {
-        ESP_LOGD ("opentherm_component", "thermostat_switch_on_state_callback %d", state);    
+    boilerOT.begin(boilerHandleInterrupt);
+    if (is_gateway){
+      ESP_LOGI("opentherm_component", "Operating as gateway");
+      thermostatOT.begin(thermostatHandleInterrupt, [=](unsigned long request, OpenThermResponseStatus status) -> void {
+        if (!thermostatOT.isValidRequest(request)) {
+          ESP_LOGE("opentherm_component", "message ET%#010x received from thermostat (message type %s, data id %d)", request, thermostatOT.messageTypeToString(thermostatOT.getMessageType(request)), boilerOT.getDataID(request));
+        } else {
+          ESP_LOGD("opentherm_component", "message T%#010x received from thermostat", request);
+        }
+        thermostat_last_request = request;
       });
+    }
 
-      domestic_hot_water_climate->set_temperature_settings(5, 6, 0);
-      domestic_hot_water_climate->setup();
+    modulating_thermostat_switch->add_on_state_callback([=](bool state) -> void {
+      ESP_LOGD ("opentherm_component", "modulating_thermostat_switch_on_state_callback %d", state);    
+      central_heating_climate->set_supports_two_point_target_temperature(state);
+    });
 
-      // Adjust HeatingWaterClimate depending on PID
-      // central_heating_climate->set_supports_heat_cool_mode(this->pid_output_ != nullptr);
-      // TODO: handle in thermostat_switch_on_state_callback?
-      // TODO: make method for (this->pid_output_ != nullptr)
-      central_heating_climate->set_supports_two_point_target_temperature(this->pid_output_ != nullptr);
-      central_heating_climate->set_temperature_settings(0, 0, 30);
-      central_heating_climate->setup();
+    domestic_hot_water_climate->set_temperature_settings(5, 6, 5.5);
+    domestic_hot_water_climate->setup();
+
+    // central_heating_climate->set_supports_heat_cool_mode(this->thermostat_modulation_ != nullptr);
+    central_heating_climate->set_supports_two_point_target_temperature(modulating_thermostat_switch->state);
+    central_heating_climate->set_temperature_settings(19.5, 20.5, 20);
+    central_heating_climate->setup();
   }
 
   float getOutsideTemperature() {
@@ -130,6 +126,11 @@ public:
   //   unsigned long response = boilerOT.sendRequest(request);
   //   return boilerOT.isValidResponse(response);
   // }
+
+  /** Sets the relative modulation level for the modulating thermostat */
+  void setThermostatModulation(OpenthermFloatOutput *thermostat_modulation) { thermostat_modulation_ = thermostat_modulation; }
+  
+  float getThermostatModulation() { return this->thermostat_modulation_ != nullptr ? thermostat_modulation_->get_state() : NAN; }
 
   void update() override {
     // TODO: split method in submethods
@@ -179,24 +180,17 @@ public:
       // }
     } else {
       // Set temperature depending on room thermostat
-      if (this->pid_output_ != nullptr) {
-        float pid_output = pid_output_->get_state();
-        if (pid_output != 0.0f) {
-          central_heating_target_temperature = pid_output * (central_heating_climate->target_temperature_high - central_heating_climate->target_temperature_low) + central_heating_climate->target_temperature_low;
-          ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (from PID Output)", central_heating_target_temperature);    
+      if (modulating_thermostat_switch->state) {
+        float thermostatModulation = getThermostatModulation();
+        if (thermostatModulation != NAN) {
+          central_heating_target_temperature = thermostatModulation * (central_heating_climate->target_temperature_high - central_heating_climate->target_temperature_low) + central_heating_climate->target_temperature_low;
+          ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (from thermostat modulation at %f%%)", central_heating_target_temperature, thermostatModulation * 100);
         }
       }
-      // TODO: rename "thermostat_switch": true disabled the PID, somehow...
-      // TODO: same logic as gateway-operation?
-      else if (thermostat_switch->state) {
+      else {
         central_heating_target_temperature = central_heating_climate->target_temperature;
-        ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (from heating water climate)", central_heating_target_temperature);
+        ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (from central heating target climate)", central_heating_target_temperature);
       }
-      // else {
-      //   // If the room thermostat is off, set it to 10, so that the pump continues to operate
-      //   central_heating_target_temperature = 10.0;
-      //   ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (default low value)", central_heating_target_temperature);
-      // }
 
       if (!isnan(central_heating_target_temperature)) {
         boilerOT.setBoilerTemperature(central_heating_target_temperature);
