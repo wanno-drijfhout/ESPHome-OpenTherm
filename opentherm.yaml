@@ -98,7 +98,7 @@ sensor:
   # - platform: homeassistant
   #   id: room_temperature_sensor
   #   entity_id: sensor.room_temperature_sensor
-  #   name: "Room temperature"
+  #   name: "Room Temperature"
   #   unit_of_measurement: °C
   #   device_class: temperature
   #   icon: "mdi:home-thermometer"
@@ -106,7 +106,7 @@ sensor:
   # You may want to replace room_temperature_sensor by a room thermostat that isn't close to the boiler
   - platform: dallas
     id: room_temperature_sensor
-    name: "Room temperature"
+    name: "Room Temperature"
     unit_of_measurement: °C
     device_class: temperature
     index: 0
