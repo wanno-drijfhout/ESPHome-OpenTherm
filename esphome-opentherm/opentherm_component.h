@@ -75,15 +75,14 @@ public:
     }
 
     modulating_thermostat_switch->add_on_state_callback([=](bool state) -> void {
-      ESP_LOGD ("opentherm_component", "modulating_thermostat_switch_on_state_callback %d", state);    
-      central_heating_climate->set_supports_two_point_target_temperature(state);
+      ESP_LOGD ("opentherm_component", "modulating_thermostat_switch_on_state_callback %d", state);
     });
 
     domestic_hot_water_climate->set_temperature_settings(5, 6, 5.5);
     domestic_hot_water_climate->setup();
 
     // central_heating_climate->set_supports_heat_cool_mode(this->thermostat_modulation_ != nullptr);
-    central_heating_climate->set_supports_two_point_target_temperature(modulating_thermostat_switch->state);
+    central_heating_climate->set_supports_two_point_target_temperature(this->thermostat_modulation_ != nullptr);
     central_heating_climate->set_temperature_settings(19.5, 20.5, 20);
     central_heating_climate->setup();
   }
@@ -180,13 +179,16 @@ public:
       // }
     } else {
       // Set temperature depending on room thermostat
+      // TODO: replace by (central_heating_climate->mode == ClimateMode::AUTO)? 
       if (modulating_thermostat_switch->state) {
         float thermostatModulation = getThermostatModulation();
         if (thermostatModulation != NAN) {
+          // TODO: should target_temperature_high and _low not be "target_temperature" and "actual_temperature"?
           central_heating_target_temperature = thermostatModulation * (central_heating_climate->target_temperature_high - central_heating_climate->target_temperature_low) + central_heating_climate->target_temperature_low;
           ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (from thermostat modulation at %f%%)", central_heating_target_temperature, thermostatModulation * 100);
         }
       }
+      // TODO: replace by (central_heating_climate->mode == ClimateMode::AUTO)? 
       else {
         central_heating_target_temperature = central_heating_climate->target_temperature;
         ESP_LOGD("opentherm_component", "setBoilerTemperature at %f °C (from central heating target climate)", central_heating_target_temperature);
