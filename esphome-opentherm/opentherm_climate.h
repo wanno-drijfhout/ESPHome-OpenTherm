@@ -1,6 +1,6 @@
 #pragma once
 #include "esphome.h"
-
+#include <math.h>
 
 class OpenthermClimate : public Climate, public Component {
 private:
@@ -59,48 +59,45 @@ public:
     }
 
   void control(const ClimateCall &call) override {
-
+    bool has_changed;
     if (call.get_mode().has_value()) {
-        // User requested mode change
+        ESP_LOGD(TAG, "get_mode");
         ClimateMode mode = *call.get_mode();
-        // Send mode to hardware
-        // ...
-        ESP_LOGD(TAG, "get_mode");    
 
-        // Publish updated state
         this->mode = mode;
-        this->publish_state();
+        has_changed = true;
     }
-    if (call.get_target_temperature().has_value()) {
-        // User requested target temperature change
-        float temp = *call.get_target_temperature();
-        // Send target temp to climate
-        // ...
-        ESP_LOGD(TAG, "get_target_temperature");    
-
-        this->target_temperature = temp;
-        this->publish_state();
-    }
+    
+    // By ensuring consistency between target_temperature "target", low and high, we allow toggling
+    // "set_supports_two_point_target_temperature" with little information loss.
     if (call.get_target_temperature_low().has_value()) {
-        // User requested target temperature change
+        ESP_LOGD(TAG, "get_target_temperature_low");
         float temp = *call.get_target_temperature_low();
-        // Send target temp to climate
-        // ...
-        ESP_LOGD(TAG, "get_target_temperature_low");    
 
         this->target_temperature_low = temp;
-        this->publish_state();
+        this->target_temperature = max(temp, this->target_temperature);
+        has_changed = true;
     }
     if (call.get_target_temperature_high().has_value()) {
-        // User requested target temperature change
+        ESP_LOGD(TAG, "get_target_temperature_high");
         float temp = *call.get_target_temperature_high();
-        // Send target temp to climate
-        // ...
-        ESP_LOGD(TAG, "get_target_temperature_high");    
 
         this->target_temperature_high = temp;
-        this->publish_state();
+        this->target_temperature = min(temp, this->target_temperature);
+        has_changed = true;
+    }
+    if (call.get_target_temperature().has_value()) {
+        ESP_LOGD(TAG, "get_target_temperature");
+        float temp = *call.get_target_temperature();
+
+        this->target_temperature = temp;
+        this->target_temperature_low = min(this->target_temperature_low, temp);
+        this->target_temperature_high = max(this->target_temperature_high, temp);
+        has_changed = true;
     }
 
+    if (has_changed) {
+      this->publish_state();
+    }
   }
 };
