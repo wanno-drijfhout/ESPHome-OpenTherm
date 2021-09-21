@@ -43,7 +43,7 @@ public:
 
         auto traits = climate::ClimateTraits();
         traits.set_supports_current_temperature(true);
-        traits.set_supported_modes({ ClimateMode::CLIMATE_MODE_HEAT });
+        traits.set_supported_modes({ ClimateMode::CLIMATE_MODE_OFF, ClimateMode::CLIMATE_MODE_HEAT });
         
         traits.set_supports_two_point_target_temperature(supports_two_point_target_temperature_);
         traits.set_supports_action(true);
@@ -64,15 +64,19 @@ public:
         this->mode = mode;
         has_changed = true;
     }
-    
-    // By ensuring consistency between target_temperature "target", low and high, we allow toggling
-    // "set_supports_two_point_target_temperature" with little information loss.
+
+    if (call.get_target_temperature().has_value()) {
+        ESP_LOGD(TAG, "get_target_temperature");
+        float temp = *call.get_target_temperature();
+
+        this->target_temperature = temp;
+        has_changed = true;
+    }
     if (call.get_target_temperature_low().has_value()) {
         ESP_LOGD(TAG, "get_target_temperature_low");
         float temp = *call.get_target_temperature_low();
 
         this->target_temperature_low = temp;
-        this->target_temperature = max(temp, this->target_temperature);
         has_changed = true;
     }
     if (call.get_target_temperature_high().has_value()) {
@@ -80,16 +84,6 @@ public:
         float temp = *call.get_target_temperature_high();
 
         this->target_temperature_high = temp;
-        this->target_temperature = min(temp, this->target_temperature);
-        has_changed = true;
-    }
-    if (call.get_target_temperature().has_value()) {
-        ESP_LOGD(TAG, "get_target_temperature");
-        float temp = *call.get_target_temperature();
-
-        this->target_temperature = temp;
-        this->target_temperature_low = min(this->target_temperature_low, temp);
-        this->target_temperature_high = max(this->target_temperature_high, temp);
         has_changed = true;
     }
 
