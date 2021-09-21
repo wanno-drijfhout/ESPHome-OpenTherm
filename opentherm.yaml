@@ -56,19 +56,14 @@ sensor:
     lambda: |-    
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
       return { 
-        openthermComp->boiler_temperature_sensor,
         openthermComp->outside_temperature_sensor, 
         openthermComp->return_temperature_sensor, 
-        openthermComp->central_heating_water_pressure_sensor,
+        openthermComp->boiler_pressure_sensor,
         openthermComp->boiler_modulation_sensor,
+        openthermComp->central_heating_actual_temperature_sensor,
         openthermComp->central_heating_target_temperature_sensor
       };
     sensors:
-    - name: "Boiler Temperature"
-      unit_of_measurement: °C
-      accuracy_decimals: 1
-      device_class: temperature
-      icon: "mdi:water-boiler"
     - name: "Outside Temperature"
       unit_of_measurement: °C
       accuracy_decimals: 0
@@ -79,7 +74,7 @@ sensor:
       accuracy_decimals: 1
       device_class: temperature
       icon: "mdi:water-sync"
-    - name: "Central Heating Water Pressure"
+    - name: "Boiler Water Pressure"
       unit_of_measurement: hPa
       accuracy_decimals: 1
       device_class: pressure
@@ -89,23 +84,29 @@ sensor:
       accuracy_decimals: 0
       device_class: power_factor
       icon: "mdi:chart-bell-curve-cumulative"
+    - name: "Central Heating Actual Temperature"
+      unit_of_measurement: °C
+      accuracy_decimals: 1
+      device_class: temperature
+      icon: "mdi:water-boiler"
     - name: "Central Heating Target Temperature"
       unit_of_measurement: °C
       accuracy_decimals: 1
       device_class: temperature
       icon: "mdi:thermostat"
       
-  - platform: homeassistant
-    id: room_temperature_sensor
-    # You may want to replace entity_id by a room thermostat that isn't close to the boiler
-    entity_id: sensor.thermostat_device_temperature_sensor
-    name: "Room temperature"
-    unit_of_measurement: °C
-    device_class: temperature
+  # - platform: homeassistant
+  #   id: room_temperature_sensor
+  #   entity_id: sensor.room_temperature_sensor
+  #   name: "Room temperature"
+  #   unit_of_measurement: °C
+  #   device_class: temperature
+  #   icon: "mdi:home-thermometer"
 
+  # You may want to replace room_temperature_sensor by a room thermostat that isn't close to the boiler
   - platform: dallas
-    id: thermostat_device_temperature_sensor
-    name: "Thermostat device temperature"
+    id: room_temperature_sensor
+    name: "Room temperature"
     unit_of_measurement: °C
     device_class: temperature
     index: 0
@@ -131,9 +132,9 @@ binary_sensor:
   - platform: custom
     lambda: |-
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
-      return {openthermComp->flame_sensor};
+      return {openthermComp->boiler_flame_sensor};
     binary_sensors:
-    - name: "Flame"
+    - name: "Boiler Flame"
       device_class: heat
 
 switch:
@@ -155,16 +156,16 @@ climate:
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
       return {
         openthermComp->domestic_hot_water_climate, 
-        openthermComp->central_heating_water_climate
+        openthermComp->central_heating_climate
       };
     climates:
       - id: domestic_hot_water
-        name: "Domestic hot water"
-      - id: central_heating_water
-        name: "Central heating water"
+        name: "Domestic Hot Water"
+      - id: central_heating
+        name: "Central Heating"
   - platform: pid
     id: pid_climate
-    name: "PID Climate Controller"
+    name: "PID Thermostat"
     visual:
       min_temperature: 15 °C
       max_temperature: 35 °C
