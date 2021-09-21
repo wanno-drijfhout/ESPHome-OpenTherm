@@ -19,6 +19,7 @@ int thermostatOutPin = D7;
 
 // Determines if this OpenTherm instance is a gateway to a real connected thermostat (true) or standalone (false)
 bool is_gateway = true;
+// TODO: generic interface for virtual PID/Modulating Thermostat or real thermostat
 
 // --- // Hardware configuration
 
@@ -41,7 +42,8 @@ private:
   const char *TAG = "opentherm_component";
   OpenthermFloatOutput *thermostat_modulation_;
 public:
-  Switch *modulating_thermostat_switch = new OpenthermSwitch(true);
+  // Enable the modulating thermostat by default, unless we're a gateway
+  Switch *modulating_thermostat_switch = new OpenthermSwitch(!is_gateway);
   Sensor *outside_temperature_sensor = new Sensor();
   Sensor *return_temperature_sensor = new Sensor();
   Sensor *boiler_modulation_sensor = new Sensor();
@@ -66,9 +68,9 @@ public:
       ESP_LOGI("opentherm_component", "Operating as gateway");
       thermostatOT.begin(thermostatHandleInterrupt, [=](unsigned long request, OpenThermResponseStatus status) -> void {
         if (!thermostatOT.isValidRequest(request)) {
-          ESP_LOGE("opentherm_component", "message ET%#010x received from thermostat (message type %s, data id %d)", request, thermostatOT.messageTypeToString(thermostatOT.getMessageType(request)), boilerOT.getDataID(request));
+          ESP_LOGE("opentherm_component", "message [ET %x] received from thermostat (message type %s, data id %d)", request, thermostatOT.messageTypeToString(thermostatOT.getMessageType(request)), boilerOT.getDataID(request));
         } else {
-          ESP_LOGD("opentherm_component", "message T%#010x received from thermostat", request);
+          ESP_LOGD("opentherm_component", "message [T %x] received from thermostat", request);
         }
         thermostat_last_request = request;
       });
@@ -139,19 +141,19 @@ public:
 
       // Forward last request
       auto response = boilerOT.sendRequest(thermostat_last_request);
-      ESP_LOGD("opentherm_component", "message R%#010x sent to boiler", thermostat_last_request);
+      ESP_LOGD("opentherm_component", "message [R %x] sent to boiler", thermostat_last_request);
       if (response) {
           if (!boilerOT.isValidResponse(response)) {
-            ESP_LOGE("opentherm_component", "message ET%#010x received from boiler (message type %s, data id %d)", response, boilerOT.messageTypeToString(boilerOT.getMessageType(response)), boilerOT.getDataID(response));
+            ESP_LOGE("opentherm_component", "message [ET %x] received from boiler (message type %s, data id %d)", response, boilerOT.messageTypeToString(boilerOT.getMessageType(response)), boilerOT.getDataID(response));
           } else {
-            ESP_LOGD("opentherm_component", "message B%#010x received from boiler", response);
+            ESP_LOGD("opentherm_component", "message [B %x] received from boiler", response);
           }
       }
       boiler_last_response = response;
 
       // Forward last response
       thermostatOT.sendResponse(boiler_last_response);
-      ESP_LOGD("opentherm_component", "message A%#010x sent to thermostat", boiler_last_response);
+      ESP_LOGD("opentherm_component", "message [A %x] sent to thermostat", boiler_last_response);
 
     } else {
 
