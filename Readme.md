@@ -26,6 +26,7 @@ Also known as "Room Thermostat" or "Air Thermostat".
   - Room Temperature (from built-in sensor, specified sensor, or external thermostat `Tr`)
   - Room Target Temperature (from UI component, or `TrSet`, or `TrOverride`)
 - Sensors
+  - Room Heating (active/inactive)
   - (-) Room Thermostat Temperature `Tr`
   - (-) Room Thermostat Target Temperature `TrSet`
   - (-) Room Remote Override Target Temperature `TrOverride`
@@ -42,6 +43,7 @@ Also known as "Domestic Hot Water". Represents readily available warm tap water.
   - Hot Water Temperature `Tdhw`
   - Hot Water Target Temperature `TdhwSet`
 - Sensors
+  - Hot Water Heating (active/inactive)
 - Controls
 
 #### Gateway (internal)
@@ -62,7 +64,7 @@ Also known as "PID Controller". Internal component not intended for direct user 
   - Pushing external sensor for room temperature to boiler
   - Pushing external sensor for weather temperature to boiler
   - Pushing external sensor for return temperature to boiler
-  - Pushing date-time to boiler
+  - Pushing date-time and day-of-week to boiler
 
 #### Boiler
 
@@ -75,9 +77,9 @@ Also known as "Central Heating". Warms both Room and Hot Water.
   - Boiler Return Water Temperature `Tret`
   - Boiler Flow Water Max Target Temperature `MaxTset`
   - Boiler Water Pressure `CHPressure`
+  
   - Boiler Flame
-  - Boiler Hot Water
-  - (-) Boiler Fault
+  - (-) Boiler Fault (8-bit vector: Service Request, Low water, Gas/flame ,...)
   - (-) Boiler Outside Temperature
   - (-) Boiler Relative Modulation Level (from `RelModLevel`)
   - (-) Boiler Relative Modulation Level Maximum (from `MaxRelModLevelSetting`)
