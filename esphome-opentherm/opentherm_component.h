@@ -1,6 +1,6 @@
 #include "esphome.h"
 #include "esphome/components/sensor/sensor.h"
-#include "OpenTherm.h"
+#include "OpenThermExt.h"
 #include "opentherm_switch.h"
 #include "opentherm_climate.h"
 #include "opentherm_binary.h"
@@ -23,8 +23,8 @@ bool is_gateway = true;
 
 // --- // Hardware configuration
 
-OpenTherm boilerOT(boilerInPin, boilerOutPin, /*isSlave:*/ false);
-OpenTherm thermostatOT(thermostatInPin, thermostatOutPin, /*isSlave:*/ true);
+OpenThermExt boilerOT(boilerInPin, boilerOutPin, /*isSlave:*/ false);
+OpenThermExt thermostatOT(thermostatInPin, thermostatOutPin, /*isSlave:*/ true);
 
 unsigned long boiler_last_response = 0;
 unsigned long thermostat_last_request = 0;
@@ -89,44 +89,6 @@ public:
     central_heating_climate->setup();
   }
 
-  float getOutsideTemperature() {
-      unsigned long response = boilerOT.sendRequest(boilerOT.buildRequest(OpenThermRequestType::READ, OpenThermMessageID::Toutside, 0));
-      return boilerOT.isValidResponse(response) ? boilerOT.getFloat(response) : NAN;
-  }
-
-  float getReturnTemperature() {
-      unsigned long response = boilerOT.sendRequest(boilerOT.buildRequest(OpenThermRequestType::READ, OpenThermMessageID::Tret, 0));
-      return boilerOT.isValidResponse(response) ? boilerOT.getFloat(response) : NAN;
-  }
-  
-  float getDomesticHotWaterTemperature() {
-      unsigned long response = boilerOT.sendRequest(boilerOT.buildRequest(OpenThermRequestType::READ, OpenThermMessageID::Tdhw, 0));
-      return boilerOT.isValidResponse(response) ? boilerOT.getFloat(response) : NAN;
-  }
-
-  bool setDomesticHotWaterTemperature(float temperature) {
-	    unsigned int data = boilerOT.temperatureToData(temperature);
-      unsigned long request = boilerOT.buildRequest(OpenThermRequestType::WRITE, OpenThermMessageID::TdhwSet, data);
-      unsigned long response = boilerOT.sendRequest(request);
-      return boilerOT.isValidResponse(response);
-  }
-
-  float getBoilerModulation() {
-    unsigned long response = boilerOT.sendRequest(boilerOT.buildRequest(OpenThermRequestType::READ, OpenThermMessageID::RelModLevel, 0));
-    return boilerOT.isValidResponse(response) ? boilerOT.getFloat(response) : NAN;
-  }
-
-  float getBoilerPressure() {
-    unsigned long response = boilerOT.sendRequest(boilerOT.buildRequest(OpenThermRequestType::READ, OpenThermMessageID::CHPressure, 0));
-    return boilerOT.isValidResponse(response) ? boilerOT.getFloat(response) : NAN;
-  }
-  
-  // bool setTemperatureSetPointOverride(float temperature) {
-  //   unsigned int data = boilerOT.temperatureToData(temperature);
-	//   unsigned long request = boilerOT.buildRequest(OpenThermMessageType::WRITE_DATA, OpenThermMessageID::TrOverride, data);
-  //   unsigned long response = boilerOT.sendRequest(request);
-  //   return boilerOT.isValidResponse(response);
-  // }
 
   /** Sets the relative modulation level for the modulating thermostat */
   void setThermostatModulation(OpenthermFloatOutput *thermostat_modulation) { thermostat_modulation_ = thermostat_modulation; }
@@ -203,19 +165,19 @@ public:
       }
 
       // Set hot water temperature
-      setDomesticHotWaterTemperature(domestic_hot_water_climate->target_temperature);
+      boilerOT.setDomesticHotWaterTemperature(domestic_hot_water_climate->target_temperature);
     }
 
     // Get Boiler status
     bool is_flame_on = boilerOT.isFlameOn(boiler_last_response);
     bool is_hot_water_active = boilerOT.isHotWaterActive(boiler_last_response);
     bool is_central_heating_active = boilerOT.isCentralHeatingActive(boiler_last_response);
-    float outside_temperature = getOutsideTemperature();
-    float return_temperature = getReturnTemperature();
-    float boiler_modulation = getBoilerModulation();
-    float boiler_pressure = getBoilerPressure();
+    float outside_temperature = boilerOT.getOutsideTemperature();
+    float return_temperature = boilerOT.getReturnTemperature();
+    float boiler_modulation = boilerOT.getRelativeModulationLevel();
+    float boiler_pressure = boilerOT.getPressure();
     float central_heating_actual_temperature = boilerOT.getBoilerTemperature();
-    float domestic_hot_water_temperature = getDomesticHotWaterTemperature();
+    float domestic_hot_water_temperature = boilerOT.getDomesticHotWaterTemperature();
 
     // Publish sensor values
     outside_temperature_sensor->publish_state(outside_temperature);
