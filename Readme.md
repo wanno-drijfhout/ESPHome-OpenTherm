@@ -1,74 +1,62 @@
-# ESPHome OpenTherm
+# ESPHome OpenTherm Gateway
 
-This is an example of a integration with a OpenTherm boiler using [ESPHome](https://esphome.io/) and the [Ihor Melnyk](http://ihormelnyk.com/opentherm_adapter) or [DIYLESS](https://diyless.com/product/esp8266-thermostat-shield) OpenTherm Adapter 
+This integration connects to an OpenTherm boiler using [ESPHome](https://esphome.io/) and any of the following hardware:
+
+- the adapter [Ihor Melnyk OpenTherm Adapter](http://ihormelnyk.com/opentherm_adapter);
+- the adapter [DIYLESS ESP8266 Thermostat Shield](https://diyless.com/product/esp8266-thermostat-shield);
+- the gateway [DIYLESS ESP8266 Opentherm Gateway](https://diyless.com/product/esp8266-opentherm-gateway).
+
+Note that *adapters* do not support external physical thermostats hardware; you need a *gateway* if you want to retain usage of physical thermostats.
 
 ## Installation
-- Copy the content of this repository to your ESPHome folder
+
+- Copy the content of this repository to your ESPHome config folder
 - Make sure the pin numbers are right, check the file `opentherm_component.h` in the `esphome-opentherm` folder.
-- Edit the opentherm.yaml file:
+- Edit the `opentherm.yaml` file:
     - Make sure the board and device settings are correct for your device
     - Set the sensor `entity_id` with the external temperature sensor's name from Home Assistant. (The ESPHome sensor name is `room_temperature_sensor`).
 - Flash the ESP and configure in Home Assistant. It should be auto-discovered by the ESPHome Integration.
 
-## System Design
+## Domains
 
-### Climate control & sensors
+There are *user* domains that represent what humans expect from a Central Heating Unit: **Room** and **Hot Water**.
 
-This integration defines various climates, controls and sensors.
+There are *technical* domains that represent the available hardware: **Boiler**, **Thermostat**, **Integration**.
 
-Items marked with (-) will be hidden by default, because they are included or abstracted by other sensors or climates. They exist only to debug and to prevent loss of information.
+### Room
 
-#### Room
-
-Also known as "Room Thermostat" or "Air Thermostat".
+Represents the Room atmosphere/air/warmth in living spaces.
 
 - Climate
   - Room Temperature (from built-in sensor, specified sensor, or external thermostat `Tr`)
   - Room Target Temperature (from UI component, or `TrSet`, or `TrOverride`)
 - Sensors
   - Room Heating (active/inactive)
-  - (-) Room Thermostat Temperature `Tr`
-  - (-) Room Thermostat Target Temperature `TrSet`
-  - (-) Room Remote Override Target Temperature `TrOverride`
-  - Room Remote Override Function `RemoteOverrideFunction`
-    - bit 0:  Manual change priority [disable/enable overruling remote setpoint by manual setpoint change ] 
-    - bit 1:  Program change priority [disable/enable overruling remote setpoint by program setpoint change ]
-- Controls
 
-#### Hot Water
+### Hot Water
 
-Also known as "Domestic Hot Water". Represents readily available warm tap water.
+Represents the readily available warm tap water ("Domestic Hot Water").
 
 - Climate
-  - Hot Water Temperature `Tdhw`
-  - Hot Water Target Temperature `TdhwSet`
+  - Hot Water Temperature (`Tdhw`)
+  - Hot Water Target Temperature (`TdhwSet`)
 - Sensors
   - Hot Water Heating (active/inactive)
-- Controls
 
-#### Gateway (internal)
+### Thermostat (optional OpenTherm master device)
 
-Also known as "PID Controller". Internal component not intended for direct user interaction. Controls and abstracts Boiler on behalf of Room (thermostat), possibly modulating and overriding values.
+Represents the external physical room thermostat. Only available in gateway mode.
 
-- Climate
-  - Gateway Modulation (PID)
-- Sensors
-  - Relative Modulation Level (from `RelModLevel` or PID)
-  - Relative Modulation Level Maximum (from `MaxRelModLevelSetting` or PID)
-  - (-) Gateway Relative Modulation Level ("PID output")
-- Controls
-  - (-) Gateway Modulation Enabled (default: true if Thermostat Mode `master`)
-  - (-) Gateway Modulation Autotune
-  - (-) Gateway Thermostat Mode (`master` / `slave`)
-- Additional functions
-  - Pushing external sensor for room temperature to boiler
-  - Pushing external sensor for weather temperature to boiler
-  - Pushing external sensor for return temperature to boiler
-  - Pushing date-time and day-of-week to boiler
+- Room Temperature `Tr`
+- Room Target Temperature `TrSet`
+- Room Remote Override Target Temperature `TrOverride`
+- Room Remote Override Function `RemoteOverrideFunction`
+  - bit 0:  Manual change priority [disable/enable overruling remote setpoint by manual setpoint change ] 
+  - bit 1:  Program change priority [disable/enable overruling remote setpoint by program setpoint change ]
+  
+### Boiler (OpenTherm slave device)
 
-#### Boiler
-
-Also known as "Central Heating". Warms both Room and Hot Water.
+Represents the "Central Heating Unit" warming Room and Hot Water.
 
 - Climate
   - Boiler Flow Water Temperature `Tboiler`
@@ -77,30 +65,56 @@ Also known as "Central Heating". Warms both Room and Hot Water.
   - Boiler Return Water Temperature `Tret`
   - Boiler Flow Water Max Target Temperature `MaxTset`
   - Boiler Water Pressure `CHPressure`
-  
   - Boiler Flame
   - (-) Boiler Fault (8-bit vector: Service Request, Low water, Gas/flame ,...)
   - (-) Boiler Outside Temperature
   - (-) Boiler Relative Modulation Level (from `RelModLevel`)
   - (-) Boiler Relative Modulation Level Maximum (from `MaxRelModLevelSetting`)
-- Controls
 
-### Gateway operation modes
+### Integration (the ESPHome-OpenTherm unit)
+
+Represents the software logic of the integration. Controls and abstracts Boiler on behalf of Room and Hot Water, possibly PID-modulating and overriding values. 
+
+- Climate
+  - Integration Modulation (PID)
+- Sensors
+  - Relative Modulation Level (from `RelModLevel` or PID)
+  - Relative Modulation Level Maximum (from `MaxRelModLevelSetting` or PID)
+  - (-) Integration Relative Modulation Level ("PID output")
+- Controls
+  - (-) Integration Modulation Enabled (default: true if Integration Mode `adapter`)
+  - (-) Integration Modulation Autotune
+  - (-) Integration Mode (`gateway` / `adapter`)
+- Additional functions
+  - Setting room temperature at boiler from external sensor
+  - Setting weather temperature at boiler from external sensor
+  - Setting return temperature at boiler from external sensor
+  - Setting date-time and day-of-week at boiler
+
+#### Integration Modes
 
 The gateway can operate as either of the following modes:
 
-- **Slave**: mediate between *external* physical thermostat and boiler, allowing the gateway to override the desired Room temperature. (Requires OpenTherm master and slave boards to be physically connected as an "OpenTherm gateway".)
-- **Master**: use *internal* thermostat as master to boiler, without any physical thermostat. (Requires OpenTherm master board _and_ external Room temperature sensor to be physically connected.)
+- **Gateway**: mediate between *external* physical thermostat and boiler, allowing the gateway to override the desired Room temperature. (Requires OpenTherm master and slave boards to be physically connected as an "OpenTherm gateway".)
+- **Adapter**: use *internal* thermostat as master to boiler, without any physical thermostat. (Requires OpenTherm master board _and_ external Room temperature sensor to be physically connected.)
 
 Note that it is probably impossible to let an *external* physical thermostat simply observe the *internal* one.
 
-### Modulation
+#### Integration Modulation
 
 The room climate thermostat can *modulate*, which heats the boiler gracefully at reduced power rather than going 100% or 0% to save energy and wear.
 
 Modulation is implemented via a [PID controller](https://esphome.io/components/climate/pid.html). You may want to **autotune** modulation for your home, which provides new values for control parameters `kp`, `ki` and `kd`; these can be read as sensors or on the logging output.
 
 Modulation can be disabled or enabled. In *gateway* mode, modulation would affect the `TrOverride`; if an external thermostat _is_ modulating already, modulation is unnecessary. In *master* mode, modulation would affect `TSet` and modulation is often useful.
+
+## Architecture
+
+This integration has a Model-View-Controller layered architecture.
+
+- **Models** represent the domain state of connected hardware (boiler, external thermostat, external temperature sensors)
+- **Views** represent the domain visualisation as Home Assistant entities (climates, switches, sensors etc.)
+- **Controllers** represent the connection from Views to Models and any functional control logic (e.g., temperature overrides, PID modulation)
 
 ## Future development
 
