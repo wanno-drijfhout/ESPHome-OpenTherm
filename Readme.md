@@ -42,17 +42,6 @@ Represents the readily available warm tap water ("Domestic Hot Water").
   - Hot Water Target Temperature (`TdhwSet`)
 - Sensors
   - Hot Water Heating (active/inactive)
-
-### Thermostat (optional OpenTherm master device)
-
-Represents the external physical room thermostat. Only available in gateway mode.
-
-- Room Temperature `Tr`
-- Room Target Temperature `TrSet`
-- Room Remote Override Target Temperature `TrOverride`
-- Room Remote Override Function `RemoteOverrideFunction`
-  - bit 0:  Manual change priority [disable/enable overruling remote setpoint by manual setpoint change ] 
-  - bit 1:  Program change priority [disable/enable overruling remote setpoint by program setpoint change ]
   
 ### Boiler (OpenTherm slave device)
 
@@ -70,6 +59,17 @@ Represents the "Central Heating Unit" warming Room and Hot Water.
   - (-) Boiler Outside Temperature
   - (-) Boiler Relative Modulation Level (from `RelModLevel`)
   - (-) Boiler Relative Modulation Level Maximum (from `MaxRelModLevelSetting`)
+
+### Thermostat (optional OpenTherm master device)
+
+Represents the external physical room thermostat. Only available in gateway mode.
+
+- Room Temperature `Tr`
+- Room Target Temperature `TrSet`
+- Room Remote Override Target Temperature `TrOverride`
+- Room Remote Override Function `RemoteOverrideFunction`
+  - bit 0:  Manual change priority [disable/enable overruling remote setpoint by manual setpoint change ] 
+  - bit 1:  Program change priority [disable/enable overruling remote setpoint by program setpoint change ]
 
 ### Integration (the ESPHome-OpenTherm unit)
 
@@ -93,7 +93,7 @@ Represents the software logic of the integration. Controls and abstracts Boiler 
 
 #### Integration Modes
 
-The gateway can operate as either of the following modes:
+The integration can operate in either of the following modes:
 
 - **Gateway**: mediate between *external* physical thermostat and boiler, allowing the gateway to override the desired Room temperature. (Requires OpenTherm master and slave boards to be physically connected as an "OpenTherm gateway".)
 - **Adapter**: use *internal* thermostat as master to boiler, without any physical thermostat. (Requires OpenTherm master board _and_ external Room temperature sensor to be physically connected.)
@@ -108,13 +108,11 @@ Modulation is implemented via a [PID controller](https://esphome.io/components/c
 
 Modulation can be disabled or enabled. In *gateway* mode, modulation would affect the `TrOverride`; if an external thermostat _is_ modulating already, modulation is unnecessary. In *master* mode, modulation would affect `TSet` and modulation is often useful.
 
-## Architecture
+## Technical Architecture
 
-This integration has a Model-View-Controller layered architecture.
+This integration defines many sensors for the individual variables in the domain model. Each Sensor is named after its domain.
 
-- **Models** represent the domain state of connected hardware (boiler, external thermostat, external temperature sensors)
-- **Views** represent the domain visualisation as Home Assistant entities (climates, switches, sensors etc.)
-- **Controllers** represent the connection from Views to Models and any functional control logic (e.g., temperature overrides, PID modulation)
+Sensors may observe other sensors to implement more complex logic (e.g., overriding temperatures, modulating, fallbacks).
 
 ## Future development
 
