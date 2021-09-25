@@ -1,11 +1,16 @@
 #include "esphome.h"
 #include "esphome/components/sensor/sensor.h"
-#include "OpenThermExt.cpp"
+#include "OpenThermExt.h"
 #include "opentherm_switch.h"
 #include "opentherm_climate.h"
 #include "opentherm_binary.h"
 #include "opentherm_output.h"
 #include <math.h>
+
+#include "modulation/OtRelativeModulationLevel.h"
+#include "modulation/PidModulationSwitch.h"
+#include "modulation/PidRelativeModulationLevel.h"
+#include "modulation/RelativeModulationLevel.h"
 
 // --- Hardware configuration
 
@@ -43,10 +48,13 @@ private:
   OpenthermFloatOutput *thermostat_modulation_;
 public:
   // Enable the modulating thermostat by default, unless we're a gateway
-  Switch *modulating_thermostat_switch = new OpenthermSwitch(!is_gateway);
+  PidModulationSwitch *pidModulationSwitch = new PidModulationSwitch(!is_gateway);
+  PidRelativeModulationLevel *pidRelativeModulationLevel = new PidRelativeModulationLevel();
+  OtRelativeModulationLevel *boilerRelativeModulationLevel = new OtRelativeModulationLevel(&boilerOT);
+  RelativeModulationLevel *relativeModulationLevel = new RelativeModulationLevel(pidModulationSwitch, pidRelativeModulationLevel, boilerRelativeModulationLevel);
+
   Sensor *outside_temperature_sensor = new Sensor();
   Sensor *return_temperature_sensor = new Sensor();
-  Sensor *boiler_modulation_sensor = new Sensor();
   Sensor *boiler_pressure_sensor = new Sensor();
   Sensor *central_heating_actual_temperature_sensor = new Sensor();
   Sensor *central_heating_target_temperature_sensor = new Sensor();
@@ -76,15 +84,11 @@ public:
       });
     }
 
-    modulating_thermostat_switch->add_on_state_callback([=](bool state) -> void {
-      ESP_LOGD ("opentherm_component", "modulating_thermostat_switch_on_state_callback %d", state);
-    });
-
     domestic_hot_water_climate->set_temperature_settings(5, 6, 5.5);
     domestic_hot_water_climate->setup();
 
     // central_heating_climate->set_supports_heat_cool_mode(this->thermostat_modulation_ != nullptr);
-    central_heating_climate->set_supports_two_point_target_temperature(this->thermostat_modulation_ != nullptr);
+    central_heating_climate->set_supports_two_point_target_temperature(true); //this->thermostat_modulation_ != nullptr);
     central_heating_climate->set_temperature_settings(19.5, 20.5, 20);
     central_heating_climate->setup();
   }
@@ -144,8 +148,8 @@ public:
     } else {
       // Set temperature depending on room thermostat
       // TODO: replace by (central_heating_climate->mode == ClimateMode::AUTO)? 
-      if (modulating_thermostat_switch->state) {
-        float thermostatModulation = getThermostatModulation();
+      if (this->pidModulationSwitch->state) {
+        float thermostatModulation = this->pidRelativeModulationLevel->get_state();
         if (thermostatModulation != NAN) {
           // TODO: should target_temperature_high and _low not be "target_temperature" and "actual_temperature"?
           central_heating_target_temperature = thermostatModulation * (central_heating_climate->target_temperature_high - central_heating_climate->target_temperature_low) + central_heating_climate->target_temperature_low;
@@ -174,7 +178,6 @@ public:
     bool is_central_heating_active = boilerOT.isCentralHeatingActive(boiler_last_response);
     float outside_temperature = boilerOT.getOutsideTemperature();
     float return_temperature = boilerOT.getReturnTemperature();
-    float boiler_modulation = boilerOT.getRelativeModulationLevel();
     float boiler_pressure = boilerOT.getPressure();
     float central_heating_actual_temperature = boilerOT.getBoilerTemperature();
     float domestic_hot_water_temperature = boilerOT.getDomesticHotWaterTemperature();
@@ -183,7 +186,6 @@ public:
     outside_temperature_sensor->publish_state(outside_temperature);
     return_temperature_sensor->publish_state(return_temperature);
     boiler_flame_sensor->publish_state(is_flame_on); 
-    boiler_modulation_sensor->publish_state(boiler_modulation);
     boiler_pressure_sensor->publish_state(boiler_pressure);
     central_heating_actual_temperature_sensor->publish_state(central_heating_actual_temperature);
     central_heating_target_temperature_sensor->publish_state(central_heating_target_temperature);

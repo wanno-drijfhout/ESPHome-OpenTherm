@@ -38,12 +38,9 @@ output:
     type: float
     lambda: |-
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
-      auto thermostat_modulation = new OpenthermFloatOutput();
-      openthermComp->setThermostatModulation(thermostat_modulation);
-      App.register_component(thermostat_modulation);     
-      return {thermostat_modulation};
+      return {openthermComp->pidRelativeModulationLevel};
     outputs:
-      id: thermostat_modulation
+      id: pidRelativeModulationLevel
       #min_power: 30.00%
       #max_power: 60.00%
 
@@ -55,15 +52,22 @@ sensor:
   - platform: custom
     lambda: |-    
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
-      return { 
+      return {
+        App.register_component(openthermComp->pidRelativeModulationLevel),
+        App.register_component(openthermComp->boilerRelativeModulationLevel),
+        App.register_component(openthermComp->relativeModulationLevel),
+
         openthermComp->outside_temperature_sensor, 
         openthermComp->return_temperature_sensor, 
         openthermComp->boiler_pressure_sensor,
-        openthermComp->boiler_modulation_sensor,
         openthermComp->central_heating_actual_temperature_sensor,
         openthermComp->central_heating_target_temperature_sensor
       };
     sensors:
+    - name: "PID Relative Modulation Level"
+    - name: "Boiler Relative Modulation Level"
+    - name: "Relative Modulation Level"
+
     - name: "Outside Temperature"
       unit_of_measurement: °C
       accuracy_decimals: 0
@@ -79,11 +83,6 @@ sensor:
       accuracy_decimals: 1
       device_class: pressure
       icon: "mdi:hydraulic-oil-level"
-    - name: "Boiler Modulation"
-      unit_of_measurement: "%"
-      accuracy_decimals: 0
-      device_class: power_factor
-      icon: "mdi:chart-bell-curve-cumulative"
     - name: "Central Heating Actual Temperature"
       unit_of_measurement: °C
       accuracy_decimals: 1
@@ -141,14 +140,13 @@ switch:
   - platform: custom
     lambda: |-
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
-      return {openthermComp->modulating_thermostat_switch};
+      return {openthermComp->pidModulationSwitch};
     switches:
-      name: "Modulating Thermostat Enabled"
-      icon: "mdi:vector-curve"
+    - name: "PID Modulation"
   - platform: template
-    name: "Modulating Thermostat Autotune"
+    name: "PID Modulation Start autotune"
     turn_on_action:
-      - climate.pid.autotune: modulating_thermostat      
+      - climate.pid.autotune: pid_controller      
 
 climate:
   - platform: custom
@@ -164,15 +162,15 @@ climate:
       - id: central_heating
         name: "Central Heating"
   - platform: pid
-    id: modulating_thermostat
-    name: "Modulating Thermostat"
+    id: pid_controller
+    name: "PID Controller"
     visual:
       min_temperature: 15 °C
       max_temperature: 35 °C
       temperature_step: 0.5 °C
     sensor: room_temperature_sensor
     default_target_temperature: 20 °C
-    heat_output: thermostat_modulation
+    heat_output: pidRelativeModulationLevel
     control_parameters:
       kp: 0.38197
       ki: 0.01012
