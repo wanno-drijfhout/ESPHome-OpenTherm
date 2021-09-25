@@ -1,9 +1,4 @@
-#ifndef OpenThermExt_h
-#define OpenThermExt_h
-
-// TODO: split into .h and .cpp files
-// TODO: reformat everything
-
+#pragma once
 #include "OpenTherm.h"
 
 class OpenThermExt : public OpenTherm
@@ -50,5 +45,3 @@ public:
   //   return isValidResponse(response);
   // }
 };
-
-#endif // OpenThermExt_h

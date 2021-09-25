@@ -1,6 +1,6 @@
 #include "esphome.h"
 #include "esphome/components/sensor/sensor.h"
-#include "OpenThermExt.h"
+#include "OpenThermExt.cpp"
 #include "opentherm_switch.h"
 #include "opentherm_climate.h"
 #include "opentherm_binary.h"
