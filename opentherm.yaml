@@ -131,8 +131,16 @@ binary_sensor:
   - platform: custom
     lambda: |-
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
-      return {openthermComp->boiler_flame_sensor};
+      return {
+        App.register_component(openthermComp->centralHeatingMode),
+        App.register_component(openthermComp->centralHeatingEnable),
+        
+        openthermComp->boiler_flame_sensor,
+      };
     binary_sensors:
+    - name: "Central Heating Mode"
+    - name: "Central Heating Enable"
+
     - name: "Boiler Flame"
       device_class: heat
 

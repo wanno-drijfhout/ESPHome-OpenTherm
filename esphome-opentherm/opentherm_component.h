@@ -12,6 +12,9 @@
 #include "modulation/PidRelativeModulationLevel.h"
 #include "modulation/RelativeModulationLevel.h"
 
+#include "boiler/CentralHeatingMode.h"
+#include "room/CentralHeatingEnable.h"
+
 // --- Hardware configuration
 
 // Pins to OpenTherm Master (virtual Thermostat, connects to real Boiler)
@@ -52,6 +55,9 @@ public:
   PidRelativeModulationLevel *pidRelativeModulationLevel = new PidRelativeModulationLevel();
   OtRelativeModulationLevel *boilerRelativeModulationLevel = new OtRelativeModulationLevel(&boilerOT);
   RelativeModulationLevel *relativeModulationLevel = new RelativeModulationLevel(pidModulationSwitch, pidRelativeModulationLevel, boilerRelativeModulationLevel);
+
+  CentralHeatingMode *centralHeatingMode = new CentralHeatingMode(&boilerOT);
+  CentralHeatingEnable *centralHeatingEnable = new CentralHeatingEnable(&boilerOT);
 
   Sensor *outside_temperature_sensor = new Sensor();
   Sensor *return_temperature_sensor = new Sensor();
