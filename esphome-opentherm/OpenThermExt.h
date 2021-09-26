@@ -1,11 +1,75 @@
 #pragma once
-#include "OpenTherm.h"
 
+#include "OpenTherm.h"
+#include <math.h>
+
+// Workaround
+// We cannot convert captured lambda handlers (e.g., with references to "this") to function pointers,
+// which is what the class OpenTherm desired. The callbacks don't have any "tag" parameter either to
+// help us distinguish between "this" instances. So, we'll hard-code we'd need two instances.
+// The ideal solution is to refactor the function pointers into std::function<..>.
+std::function<void(void)> _ot1_handleInterruptCallback;
+std::function<void(unsigned long, OpenThermResponseStatus)> _ot1_processResponseCallback;
+ICACHE_RAM_ATTR void _ot1_handleInterrupt()
+{
+  _ot1_handleInterruptCallback();
+}
+void _ot1_processResponse(unsigned long request, OpenThermResponseStatus status)
+{
+  _ot1_processResponseCallback(request, status);
+}
+
+std::function<void(void)> _ot2_handleInterruptCallback;
+std::function<void(unsigned long, OpenThermResponseStatus)> _ot2_processResponseCallback;
+ICACHE_RAM_ATTR void _ot2_handleInterrupt()
+{
+  _ot2_handleInterruptCallback();
+}
+void _ot2_processResponse(unsigned long request, OpenThermResponseStatus status)
+{
+  _ot2_processResponseCallback(request, status);
+}
+
+/**
+ * This class should be subsumed into the OpenTherm library
+ */
 class OpenThermExt : public OpenTherm
 {
 public:
   OpenThermExt(int inPin = 4, int outPin = 5, bool isSlave = false) : OpenTherm(inPin, outPin, isSlave) {}
 
+  void begin(std::function<void(void)> handleInterruptCallback, std::function<void(unsigned long, OpenThermResponseStatus)> processResponseCallback)
+  {
+    if (_ot1_handleInterruptCallback == nullptr)
+    {
+      _ot1_handleInterruptCallback = handleInterruptCallback;
+      _ot1_processResponseCallback = processResponseCallback;
+      ((OpenTherm *)this)->begin(&_ot1_handleInterrupt, &_ot1_processResponse);
+    }
+    else if (_ot2_handleInterruptCallback == nullptr)
+    {
+      _ot2_handleInterruptCallback = handleInterruptCallback;
+      _ot2_processResponseCallback = processResponseCallback;
+      ((OpenTherm *)this)->begin(&_ot2_handleInterrupt, &_ot2_processResponse);
+    }
+    else
+    {
+      ESP_LOGE("OpenThermExt", "Too many connections open! Hard-coded workaround for callbacks no longer working");
+    }
+  }
+
+  void begin(std::function<void(void)> handleInterruptCallback)
+  {
+    begin(handleInterruptCallback, nullptr);
+  }
+
+  bool sendRequestAsync(unsigned long request)
+  {
+    // Note: typo "Aync"
+    return sendRequestAync(request);
+  }
+
+  // OLD
   float getOutsideTemperature()
   {
     unsigned long response = sendRequest(buildRequest(OpenThermRequestType::READ, OpenThermMessageID::Toutside, 0));
