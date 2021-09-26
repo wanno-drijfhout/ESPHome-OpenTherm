@@ -36,6 +36,7 @@ public:
     {
         if (ot_ == nullptr || ot_->status == OpenThermStatus::NOT_INITIALIZED)
             status_set_error();
+        needsUpdate_ = true;
         // TODO: register event to call updateData
     }
 
