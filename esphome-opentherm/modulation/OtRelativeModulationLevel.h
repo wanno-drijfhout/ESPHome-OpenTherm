@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../esphome.h"
-#include "../OpenThermSensor.h"
+#include "../OpenThermDataComponent.h"
 
 using namespace esphome;
 using namespace esphome::sensor;
@@ -9,11 +9,11 @@ using namespace esphome::sensor;
 /**
  * Represents the relative modulation level from the OpenTherm boiler.
  */
-class OtRelativeModulationLevel : public OpenThermSensor
+class OtRelativeModulationLevel : public OpenThermDataComponent, public Sensor
 {
 public:
     OtRelativeModulationLevel(OpenThermExt *ot)
-        : OpenThermSensor(ot)
+        : OpenThermDataComponent(ot, OpenThermMessageID::RelModLevel), Sensor()
     {
         set_name("Boiler Relative Modulation Level");
         set_unit_of_measurement("%");
@@ -22,9 +22,8 @@ public:
         set_device_class("power_factor");
     }
 
-    void update() override
+    void updateData(uint16_t response) override
     {
-        auto state = otReadFloat(OpenThermMessageID::RelModLevel);
-        publish_state(state.value_or(NAN));
+        publish_state(asF88(response));
     }
 };
