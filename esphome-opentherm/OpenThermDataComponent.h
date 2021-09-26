@@ -157,10 +157,14 @@ private:
             needsUpdate_ = true;
             status_set_error();
         }
+        else if (ot_->getDataID(relevantResponse) != dataId_)
+        {
+            // We need the response to be *relevant* for this data ID
+            ESP_LOGE("OpenThermDataComponent", "Bug? Received unexpected data ID [%s]; expected [%s]", ot_->getDataID(relevantResponse), dataId_);
+        }
         else
         {
             // We got a valid response that is *relevant* for this data ID
-            assert(ot_->getDataID(relevantResponse) != dataId_);
             needsUpdate_ = false;
             status_clear_error();
 
