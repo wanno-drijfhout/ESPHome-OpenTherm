@@ -48,7 +48,7 @@ ICACHE_RAM_ATTR void thermostatHandleInterrupt() {
 class OpenthermComponent: public PollingComponent {
 private:
   const char *TAG = "opentherm_component";
-  OpenthermFloatOutput *thermostat_modulation_;
+
 public:
   // Enable the modulating thermostat by default, unless we're a gateway
   PidModulationSwitch *pidModulationSwitch = new PidModulationSwitch(!is_gateway);
@@ -98,12 +98,6 @@ public:
     central_heating_climate->set_temperature_settings(19.5, 20.5, 20);
     central_heating_climate->setup();
   }
-
-
-  /** Sets the relative modulation level for the modulating thermostat */
-  void setThermostatModulation(OpenthermFloatOutput *thermostat_modulation) { thermostat_modulation_ = thermostat_modulation; }
-  
-  float getThermostatModulation() { return this->thermostat_modulation_ != nullptr ? thermostat_modulation_->get_state() : NAN; }
 
   void update() override {
     // TODO: split method in submethods
