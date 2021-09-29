@@ -29,13 +29,11 @@ public:
     OpenThermDataComponent(OpenThermExt *ot, OpenThermMessageID dataId)
         : PollingComponent(3000), ot_(ot), dataId_(dataId)
     {
-        set_setup_priority(setup_priority::HARDWARE);
+        set_setup_priority(setup_priority::DATA);
     }
 
     void setup() override
     {
-        if (ot_ == nullptr || ot_->status == OpenThermStatus::NOT_INITIALIZED)
-            status_set_error();
         needsUpdate_ = true;
         // TODO: register event to call updateData
     }
@@ -45,11 +43,19 @@ public:
      */
     void update() override
     {
+        if (ot_ == nullptr || ot_->status == OpenThermStatus::NOT_INITIALIZED)
+        {
+            ESP_LOGE("OpenThermDataComponent", "OpenTherm connection not initialized");
+            status_set_error();
+            return;
+        }
+
         // We may have gotten an appropriate response that the physical thermostat
         // already asked for (needsUpdate_ == false). In that case, we'll piggy-back
         // on that response once.
         if (needsUpdate_)
         {
+            ESP_LOGD("OpenThermDataComponent", "Polling to update data-ID %d...", dataId_);
             pollData();
         }
 
@@ -142,6 +148,7 @@ private:
 
     void pollData()
     {
+        ESP_LOGD("OpenThermDataComponent", "Sending request for request data ID [%d]...", dataId_);
         uint32_t request = ot_->buildRequest(OpenThermRequestType::READ_DATA, dataId_, 0);
         uint32_t response = ot_->sendRequest(request);
         interpretResponse(response);
@@ -155,13 +162,14 @@ private:
         if (!ot_->isValidResponse(relevantResponse))
         {
             // We didn't get a valid response
+            ESP_LOGE("OpenThermDataComponent", "Response for request data ID [%d] invalid!", dataId_);
             needsUpdate_ = true;
             status_set_error();
         }
         else if (ot_->getDataID(relevantResponse) != dataId_)
         {
             // We need the response to be *relevant* for this data ID
-            ESP_LOGE("OpenThermDataComponent", "Bug? Received unexpected data ID [%s]; expected [%s]", ot_->getDataID(relevantResponse), dataId_);
+            ESP_LOGE("OpenThermDataComponent", "Bug? Received unexpected data ID [%d]; expected [%s]", ot_->getDataID(relevantResponse), dataId_);
         }
         else
         {

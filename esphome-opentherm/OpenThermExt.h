@@ -8,25 +8,29 @@
 // which is what the class OpenTherm desired. The callbacks don't have any "tag" parameter either to
 // help us distinguish between "this" instances. So, we'll hard-code we'd need two instances.
 // The ideal solution is to refactor the function pointers into std::function<..>.
-std::function<void(void)> _ot1_handleInterruptCallback;
-std::function<void(unsigned long, OpenThermResponseStatus)> _ot1_processResponseCallback;
+std::function<void(void)> _ot1_handleInterruptCallback = nullptr;
+std::function<void(unsigned long, OpenThermResponseStatus)> _ot1_processResponseCallback = nullptr;
 ICACHE_RAM_ATTR void _ot1_handleInterrupt()
 {
+  ESP_LOGD("OpenThermExt", "_ot1_handleInterrupt()");
   _ot1_handleInterruptCallback();
 }
 void _ot1_processResponse(unsigned long request, OpenThermResponseStatus status)
 {
+  ESP_LOGD("OpenThermExt", "_ot1_processResponse()");
   _ot1_processResponseCallback(request, status);
 }
 
-std::function<void(void)> _ot2_handleInterruptCallback;
-std::function<void(unsigned long, OpenThermResponseStatus)> _ot2_processResponseCallback;
+std::function<void(void)> _ot2_handleInterruptCallback = nullptr;
+std::function<void(unsigned long, OpenThermResponseStatus)> _ot2_processResponseCallback = nullptr;
 ICACHE_RAM_ATTR void _ot2_handleInterrupt()
 {
+  ESP_LOGD("OpenThermExt", "_ot2_handleInterrupt()");
   _ot2_handleInterruptCallback();
 }
 void _ot2_processResponse(unsigned long request, OpenThermResponseStatus status)
 {
+  ESP_LOGD("OpenThermExt", "_ot2_processResponse()");
   _ot2_processResponseCallback(request, status);
 }
 
@@ -44,13 +48,13 @@ public:
     {
       _ot1_handleInterruptCallback = handleInterruptCallback;
       _ot1_processResponseCallback = processResponseCallback;
-      ((OpenTherm *)this)->begin(&_ot1_handleInterrupt, &_ot1_processResponse);
+      ((OpenTherm *)this)->begin(&_ot1_handleInterrupt, processResponseCallback != nullptr ? &_ot1_processResponse : NULL);
     }
     else if (_ot2_handleInterruptCallback == nullptr)
     {
       _ot2_handleInterruptCallback = handleInterruptCallback;
       _ot2_processResponseCallback = processResponseCallback;
-      ((OpenTherm *)this)->begin(&_ot2_handleInterrupt, &_ot2_processResponse);
+      ((OpenTherm *)this)->begin(&_ot2_handleInterrupt, processResponseCallback != nullptr ? &_ot2_processResponse : NULL);
     }
     else
     {

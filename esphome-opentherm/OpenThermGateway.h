@@ -26,9 +26,9 @@ private:
 
     void forwardRequestToBoiler(uint32_t request)
     {
-        ESP_LOGD("OpenThermGateway", "forwarding request [%x] to %s", request, boilerConnection_->get_name().c_str());
+        ESP_LOGD("OpenThermGateway", "forwarding request [%8x] to boiler", request);
         uint32_t response = boilerConnection_->sendRequest(request);
-        ESP_LOGD("OpenThermGateway", "forwarding response [%x] to %s", request, thermostatConnection_->get_name().c_str());
+        ESP_LOGD("OpenThermGateway", "forwarding response [%8x] to thermostat", request);
         thermostatConnection_->sendResponse(response);
     }
 };

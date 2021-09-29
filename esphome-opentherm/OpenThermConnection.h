@@ -18,10 +18,14 @@ public:
     OpenThermConnection(int inPin, int outPin, bool actAsSlave)
         : Component(), inPin_(inPin), outPin_(outPin), actAsSlave_(actAsSlave)
     {
+        ot_ = new OpenThermExt(inPin_, outPin_, actAsSlave_);
+
         set_setup_priority(setup_priority::IO);
         set_name(actAsSlave ? "thermostat" : "boiler");
         set_internal(true);
     }
+
+    uint32_t hash_base() override { return 1116779545UL; }
 
     void setup() override
     {
@@ -56,8 +60,9 @@ public:
         ot_->handleInterrupt();
     }
 
-private:
+    // TODO: make private
     OpenThermExt *ot_;
+private:
     int inPin_;
     int outPin_;
     bool actAsSlave_;
@@ -66,14 +71,14 @@ private:
 
     void processResponse(unsigned long request, OpenThermResponseStatus status)
     {
-        if (!ot_->isValidRequest(request))
+        if (!ot_->isValidResponse(request))
         {
-            ESP_LOGE("OpenThermConnection", "message [%x] received from %s (data id %d; message type %s)",
+            ESP_LOGE("OpenThermConnection", "message [%8x] received from %s (data id %d; message type %s)",
                      request, get_name().c_str(), ot_->getDataID(request), ot_->messageTypeToString(ot_->getMessageType(request)));
         }
         else
         {
-            ESP_LOGV("OpenThermConnection", "message [%x] received from %s (data id %d)",
+            ESP_LOGV("OpenThermConnection", "message [%8x] received from %s (data id %d)",
                      request, get_name().c_str(), ot_->getDataID(request));
         }
 
