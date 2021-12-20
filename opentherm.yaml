@@ -38,106 +38,141 @@ output:
     type: float
     lambda: |-
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
-      auto opentherm_pid_output = new OpenthermFloatOutput();
-      openthermComp->set_pid_output(opentherm_pid_output);
-      App.register_component(opentherm_pid_output);     
-      return {opentherm_pid_output};
+      auto thermostat_modulation = new OpenthermFloatOutput();
+      openthermComp->setThermostatModulation(thermostat_modulation);
+      App.register_component(thermostat_modulation);     
+      return {thermostat_modulation};
     outputs:
-      id: pid_output
+      id: thermostat_modulation
       #min_power: 30.00%
       #max_power: 60.00%
+
+dallas:
+  # https://diyless.com/blog/home-assistant-opentherm-thermostat
+  - pin: 14
 
 sensor:
   - platform: custom
     lambda: |-    
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
       return { 
-        openthermComp->boiler_temperature, 
-        openthermComp->external_temperature_sensor, 
+        openthermComp->outside_temperature_sensor, 
         openthermComp->return_temperature_sensor, 
-        openthermComp->pressure_sensor,
-        openthermComp->modulation_sensor,
-        openthermComp->heating_target_temperature_sensor
+        openthermComp->boiler_pressure_sensor,
+        openthermComp->boiler_modulation_sensor,
+        openthermComp->central_heating_actual_temperature_sensor,
+        openthermComp->central_heating_target_temperature_sensor
       };
     sensors:
-    - name: Boiler Temperature
+    - name: "Outside Temperature"
       unit_of_measurement: °C
-      accuracy_decimals: 1
-    - name: "External Temperature"
-      unit_of_measurement: °C
-      accuracy_decimals: 0  
+      accuracy_decimals: 0
+      device_class: temperature
+      icon: "mdi:sun-thermometer-outline"
     - name: "Return Temperature"
       unit_of_measurement: °C
       accuracy_decimals: 1
-    - name: "Heating Water Pressure"
+      device_class: temperature
+      icon: "mdi:water-sync"
+    - name: "Boiler Pressure"
       unit_of_measurement: hPa
       accuracy_decimals: 1
+      device_class: pressure
+      icon: "mdi:hydraulic-oil-level"
     - name: "Boiler Modulation"
       unit_of_measurement: "%"
       accuracy_decimals: 0
-    - name: "Heating Target Temperature"
-      unit_of_measurement: ºC
+      device_class: power_factor
+      icon: "mdi:chart-bell-curve-cumulative"
+    - name: "Central Heating Actual Temperature"
+      unit_of_measurement: °C
       accuracy_decimals: 1
+      device_class: temperature
+      icon: "mdi:water-boiler"
+    - name: "Central Heating Target Temperature"
+      unit_of_measurement: °C
+      accuracy_decimals: 1
+      device_class: temperature
+      icon: "mdi:thermostat"
       
-  - platform: homeassistant
-    id: temperature_sensor
-    entity_id: sensor.temperature_sensor
-    name: "Actual temperature"
+  # - platform: homeassistant
+  #   id: room_temperature_sensor
+  #   entity_id: sensor.room_temperature_sensor
+  #   name: "Room Temperature"
+  #   unit_of_measurement: °C
+  #   device_class: temperature
+  #   icon: "mdi:home-thermometer"
+
+  # You may want to replace room_temperature_sensor by a room thermostat that isn't close to the boiler
+  - platform: dallas
+    id: room_temperature_sensor
+    name: "Room Temperature"
     unit_of_measurement: °C
+    device_class: temperature
+    index: 0
+    icon: "mdi:home-thermometer-outline"
+
   - platform: pid
-    name: "PID Climate Result"
-    type: RESULT    
+    name: "Modulating Thermostat PID Result"
+    type: RESULT
+    icon: "mdi:vector-curve"
+    disabled_by_default: true
   - platform: pid
-    name: "PID Climate HEAT"
-    type: HEAT    
+    name: "Modulating Thermostat PID HEAT"
+    type: HEAT
+    icon: "mdi:vector-curve"
+    disabled_by_default: true
   - platform: pid
-    name: "PID Climate ERROR"
-    type: ERROR    
+    name: "Modulating Thermostat PID ERROR"
+    type: ERROR
+    icon: "mdi:vector-curve"
+    disabled_by_default: true
 
 binary_sensor:
   - platform: custom
     lambda: |-
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
-      return {openthermComp->flame};
+      return {openthermComp->boiler_flame_sensor};
     binary_sensors:
-    - name: "Flame"
-      #device_class: heat
+    - name: "Boiler Flame"
+      device_class: heat
 
 switch:
   - platform: custom
     lambda: |-
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
-      return {openthermComp->thermostatSwitch};
+      return {openthermComp->modulating_thermostat_switch};
     switches:
-      name: "Disable PID"
+      name: "Modulating Thermostat Enabled"
+      icon: "mdi:vector-curve"
   - platform: template
-    name: "PID Climate Autotune"
+    name: "Modulating Thermostat Autotune"
     turn_on_action:
-      - climate.pid.autotune: pid_climate      
+      - climate.pid.autotune: modulating_thermostat      
 
 climate:
   - platform: custom
     lambda: |-
       OpenthermComponent *openthermComp = (OpenthermComponent*) opentherm;
       return {
-        openthermComp->hotWaterClimate, 
-        openthermComp->heatingWaterClimate
+        openthermComp->domestic_hot_water_climate, 
+        openthermComp->central_heating_climate
       };
     climates:
-      - id: hot_water
-        name: "Hot water"
-      - id: heating_water
-        name: "Heating water"
+      - id: domestic_hot_water
+        name: "Domestic Hot Water"
+      - id: central_heating
+        name: "Central Heating"
   - platform: pid
-    id: pid_climate
-    name: "PID Climate Controller"
+    id: modulating_thermostat
+    name: "Modulating Thermostat"
     visual:
-      min_temperature: 16 °C
-      max_temperature: 28 °C
+      min_temperature: 15 °C
+      max_temperature: 35 °C
       temperature_step: 0.5 °C
-    sensor: temperature_sensor
-    default_target_temperature: 20°C
-    heat_output: pid_output
+    sensor: room_temperature_sensor
+    default_target_temperature: 20 °C
+    heat_output: thermostat_modulation
     control_parameters:
       kp: 0.38197
       ki: 0.01012
